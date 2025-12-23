@@ -172,7 +172,6 @@ func (g *Game) SetPlayerRealRole(playerID PlayerSlotID, realRole string) error {
 	return ErrPlayerNotFound
 }
 
-// Вспомогательный метод для поиска игрока по ID
 func (g *Game) FindPlayerByID(playerID PlayerSlotID) (*PlayerSlot, error) {
 	for _, player := range g.players {
 		if player.ID == playerID {

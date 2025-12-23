@@ -28,6 +28,7 @@ classDiagram
         -userID UserID
         -playerSlotID SlotID
         -predictedRole Role
+        -pointsAwarded *int
         +IsCorrect(realRole) bool
     }
     
