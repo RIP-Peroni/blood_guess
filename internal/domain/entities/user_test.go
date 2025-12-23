@@ -54,7 +54,8 @@ func TestUser_AddPoints(t *testing.T) {
 
 func TestUser_DeductPoints(t *testing.T) {
 	user := NewUser(12345, "test_user")
-	user.AddPoints(200)
+	err := user.AddPoints(200)
+	assert.NoError(t, err)
 
 	t.Run("successful write-off of points", func(t *testing.T) {
 		err := user.DeductPoints(100)
@@ -75,7 +76,7 @@ func TestUser_DeductPoints(t *testing.T) {
 
 func TestUser_UserCanMakePrediction(t *testing.T) {
 	t.Run("user can make prediction", func(t *testing.T) {
-		user = NewUser(12345, "test_user")
+		user := NewUser(12345, "test_user")
 		canPredict := user.CanMakePrediction("game-123") //just a stub for now. Logic will be in Game entity
 		assert.True(t, canPredict)
 	})
