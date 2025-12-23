@@ -1,48 +1,35 @@
 ```mermaid
 flowchart TD
-    A[cmd/bot/main.go<br>Точка входа] --> B[internal/app/bot.go<br>Ядро бота]
-    B --> C[Telegram Handlers]
-    
-    subgraph C [Слой представления]
-        C1[StartHandler]
-        C2[GameHandler]
-        C3[PredictionHandler]
-        C4[AdminHandler]
+    subgraph External ["Самый внешний слой: Фреймворки и драйверы"]
+        F1[Устройства<br>Telegram API]
+        F2[Внешние интерфейсы<br>База данных]
+        F3[UI<br>Telegram Bot Interface]
     end
     
-    C --> D[Слой сервисов]
-    
-    subgraph D [Бизнес-логика]
-        D1[UserService]
-        D2[GameService]
-        D3[PredictionService]
+    subgraph InterfaceAdapters ["Слой адаптеров интерфейсов"]
+        A1[Контроллеры<br>Telegram Handlers]
+        A2[Шлюзы<br>Repository Implementations]
+        A3[Презентаторы<br>Message Formatters]
     end
     
-    D --> E[Слой репозиториев]
-    
-    subgraph E [Хранилище данных]
-        E1[UserRepository]
-        E2[GameRepository]
-        E3[PredictionRepository]
-        E4[StateRepository]
+    subgraph Application ["Слой вариантов использования"]
+        U1[Use Cases<br>OpenPredictionsUseCase]
+        U2[Use Cases<br>SubmitPredictionUseCase]
+        U3[Use Cases<br>CalculateResultsUseCase]
+        U4[Use Cases<br>CreateGameUseCase]
     end
     
-    E --> F[Доменные модели]
-    
-    subgraph F [Сущности]
-        F1[User]
-        F2[Game]
-        F3[Prediction]
-        F4[PlayerSlot]
+    subgraph Domain ["Слой сущностей"]
+        D1[Entities<br>User, Game, Prediction]
+        D2[Business Rules<br>ScoringRules, Validation]
     end
     
-    D --> G[Вспомогательные утилиты]
-    G --> H[pkg/utils/PointsCalculator]
+    External --> InterfaceAdapters
+    InterfaceAdapters --> Application
+    Application --> Domain
     
-    style A fill:#e1f5fe
-    style C fill:#f3e5f5
-    style D fill:#e8f5e8
-    style E fill:#fff3e0
-    style F fill:#ffebee
-    style H fill:#f1f8e9
+    style External fill:#ffebee
+    style InterfaceAdapters fill:#e3f2fd
+    style Application fill:#e8f5e8
+    style Domain fill:#f3e5f5
 ```

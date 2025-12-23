@@ -1,39 +1,28 @@
 ```mermaid
 sequenceDiagram
-    participant Player as Игрок
-    participant Bot as Telegram Bot
-    participant Handler as PredictionHandler
-    participant PService as PredictionService
-    participant GService as GameService
-    participant Repo as PredictionRepository
-    participant Keyboard as Keyboard Generator
+    participant Telegram as Telegram API<br>(Внешний слой)
+    participant Controller as TelegramController<br>(Адаптер)
+    participant UseCase as SubmitPredictionUseCase<br>(Use Case)
+    participant Entity as Game Entity<br>(Domain)
+    participant Repo as Repository Gateway<br>(Адаптер)
+    participant DB as InMemory DB<br>(Внешний)
     
-    Player->>Bot: /predict
-    Bot->>Handler: Вызов PredictionHandler
-    Handler->>GService: GetActiveGame()
-    GService-->>Handler: Активная игра
-    Handler->>PService: GetPredictionState(userID, gameID)
-    PService-->>Handler: Текущее состояние прогноза
-    Handler->>Keyboard: GeneratePlayerKeyboard(game, currentPredictions)
-    Keyboard-->>Handler: Inline-клавиатура
-    Handler->>Bot: Отправка клавиатуры
-    Bot-->>Player: "Выберите игрока:"
+    Telegram->>Controller: Получает сообщение /predict
+    Controller->>Controller: Парсит в CommandDTO
+    Controller->>UseCase: Вызывает SubmitPrediction(command)
     
-    Player->>Bot: Нажатие кнопки "Игрок1: демон"
-    Bot->>Handler: Callback обработка
-    Handler->>PService: AddPrediction(userID, gameID, slotID, role)
-    PService->>PService: Валидация (все ли заполнено?)
-    PService->>Repo: Save(prediction)
-    Repo-->>PService: Успешно
-    PService-->>Handler: Обновлённый прогноз
+    UseCase->>Repo: Загружает Game
+    Repo->>DB: Получает данные
+    DB-->>Repo: Сырые данные
+    Repo-->>UseCase: Game Entity
     
-    alt Прогноз завершён
-        Handler->>Bot: "Прогноз отправлен!"
-        Bot-->>Player: Подтверждение
-    else Нужно ещё выбрать
-        Handler->>Keyboard: UpdateKeyboard()
-        Keyboard-->>Handler: Обновлённая клавиатура
-        Handler->>Bot: Обновление сообщения
-        Bot-->>Player: Обновлённый список
-    end
+    UseCase->>Entity: Проверяет game.CanAcceptPredictions()
+    Entity-->>UseCase: true/false + правила
+    
+    UseCase->>Entity: Создаёт Prediction
+    UseCase->>Repo: Сохраняет Prediction
+    
+    UseCase-->>Controller: Возвращает ResponseDTO
+    Controller->>Controller: Форматирует через Presenter
+    Controller->>Telegram: Отправляет ответ пользователю
 ```

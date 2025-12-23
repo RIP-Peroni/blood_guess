@@ -1,63 +1,58 @@
 ```mermaid
 classDiagram
     class User {
-        +ID int64
-        +TelegramID int64
-        +Username string
-        +Balance int
-        +CreatedAt time.Time
-        +UpdateBalance(amount int)
+        -id UserID
+        -telegramID int64
+        -username string
+        -balance int
+        +ID() UserID
+        +CanMakePrediction(game) bool
+        +AddPoints(amount) error
     }
     
     class Game {
-        +ID string
-        +Name string
-        +Status GameStatus
-        +CreatorID int64
-        +StartTime time.Time
-        +EndTime time.Time
-        +PlayerSlots []PlayerSlot
-        +SetStatus(status GameStatus)
-        +AddPlayerSlot(slot PlayerSlot)
-    }
-    
-    class PlayerSlot {
-        +ID string
-        +GameID string
-        +UserID int64
-        +AssignedRole string
-        +RealRole string
-        +IsRealRoleSet bool
-        +SetRealRole(role string)
+        -id GameID
+        -status GameStatus
+        -players []PlayerSlot
+        -predictions []Prediction
+        +ID() GameID
+        +OpenPredictions() error
+        +ClosePredictions() error
+        +CanAcceptPredictions() bool
+        +AddPlayer(user, role)
     }
     
     class Prediction {
-        +ID string
-        +GameID string
-        +UserID int64
-        +PlayerSlotID string
-        +PredictedRole string
-        +PointsAwarded int
-        +CreatedAt time.Time
-        +IsCorrect() bool
+        -id PredictionID
+        -gameID GameID
+        -userID UserID
+        -playerSlotID SlotID
+        -predictedRole Role
+        +IsCorrect(realRole) bool
     }
     
-    class GameStatus {
-        <<enumeration>>
-        CREATED
-        PREDICTIONS_OPEN
-        PREDICTIONS_CLOSED
-        IN_PROGRESS
-        FINISHED
+    class PlayerSlot {
+        -slotID SlotID
+        -assignedRole Role
+        -realRole Role
+        +SetRealRole(role) error
     }
     
-    User "1" -- "*" Prediction : делает
+    class ScoringRules {
+        <<interface>>
+        +Calculate(predictions, realRoles) map[UserID]int
+    }
+    
+    class GameRepository {
+        <<interface>>
+        +Save(game *Game) error
+        +FindByID(id GameID) (*Game, error)
+        +FindActiveGames() ([]*Game, error)
+    }
+    
     Game "1" -- "*" PlayerSlot : содержит
     Game "1" -- "*" Prediction : имеет
-    PlayerSlot "1" -- "*" Prediction : предсказывается
-    GameStatus -- Game : определяет статус
-    
-    note for User "Telegram ID как уникальный идентификатор"
-    note for PlayerSlot "AssignedRole - назначенная роль\nRealRole - реальная роль (открывается после игры)"
-    note for Prediction "PointsAwarded - начисленные очки\nза правильный прогноз"
+    User "1" -- "*" Prediction : создаёт
+    ScoringRules ..> Prediction : использует
+    GameRepository o.. Game : управляет
 ```

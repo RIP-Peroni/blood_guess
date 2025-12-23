@@ -1,20 +1,42 @@
 ```mermaid
-sequenceDiagram
-    participant User as Организатор
-    participant Bot as Telegram Bot
-    participant Handler as GameHandler
-    participant Service as GameService
-    participant Repo as GameRepository
-    participant Domain as Domain Models
+flowchart TD
+    Start[Пользователь: /newgame] --> Telegram
     
-    User->>Bot: /newgame Название игры
-    Bot->>Handler: Вызов GameHandler
-    Handler->>Service: CreateGame(creatorID, name)
-    Service->>Service: Валидация данных
-    Service->>Domain: Создание объекта Game
-    Service->>Repo: Save(game)
-    Repo-->>Service: Сохранённая игра
-    Service-->>Handler: Game ID
-    Handler->>Bot: Формирование ответа с ID игры
-    Bot-->>User: "Игра создана! ID: 123"
+    subgraph ExternalLayer [Внешний слой]
+        Telegram[Telegram API]
+        Clock[System Clock]
+    end
+    
+    subgraph InterfaceAdaptersLayer [Адаптеры]
+        Handler[TelegramHandler]
+        Parser[CommandParser]
+        Presenter[MessagePresenter]
+        RepoImpl[GameRepositoryImpl]
+    end
+    
+    subgraph ApplicationLayer [Use Cases]
+        CreateGame[CreateGameUseCase]
+        Validate[ValidateGameData]
+    end
+    
+    subgraph DomainLayer [Сущности]
+        GameEntity[Game Entity]
+        UserEntity[User Entity]
+        Rules[Business Rules]
+    end
+    
+    Telegram --> Handler
+    Handler --> Parser
+    Parser --> CreateGame
+    CreateGame --> Validate
+    Validate --> GameEntity
+    Validate --> UserEntity
+    GameEntity --> Rules
+    CreateGame --> RepoImpl
+    RepoImpl --> GameEntity
+    CreateGame --> Presenter
+    Presenter --> Handler
+    Handler --> Telegram
+    
+    Clock --> GameEntity
 ```
