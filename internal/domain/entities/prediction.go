@@ -4,33 +4,38 @@ import (
 	"errors"
 	"time"
 
+	"RIP-Peroni/blood_guess/internal/domain/value_objects"
+
 	"github.com/google/uuid"
 )
 
 type PredictionID string
 
-// Prediction - user prediction of a specific player's role
-// PointsAwarded set AFTER the game is completed
 type Prediction struct {
 	id            PredictionID
 	gameID        GameID
 	userID        UserID
 	playerSlotID  PlayerSlotID
-	predictedRole string
-	pointsAwarded *int // Nil - points not yet awarded, indicator to distinguish 0 points from "not yet counted"
+	predictedRole value_objects.Role // Используем Role вместо string
+	pointsAwarded *int
 	createdAt     time.Time
 }
 
-func NewPrediction(gameID GameID, userID UserID, playerSlotID PlayerSlotID, predictedRole string) *Prediction {
+func NewPrediction(gameID GameID, userID UserID, playerSlotID PlayerSlotID, predictedRoleStr string) (*Prediction, error) {
+	role, err := value_objects.FromString(predictedRoleStr)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Prediction{
 		id:            PredictionID(uuid.New().String()),
 		gameID:        gameID,
 		userID:        userID,
 		playerSlotID:  playerSlotID,
-		predictedRole: predictedRole,
-		pointsAwarded: nil, // The points will be set later.
+		predictedRole: role,
+		pointsAwarded: nil,
 		createdAt:     time.Now(),
-	}
+	}, nil
 }
 
 func (p *Prediction) ID() PredictionID {
@@ -49,7 +54,7 @@ func (p *Prediction) PlayerSlotID() PlayerSlotID {
 	return p.playerSlotID
 }
 
-func (p *Prediction) PredictedRole() string {
+func (p *Prediction) PredictedRole() value_objects.Role {
 	return p.predictedRole
 }
 
@@ -75,7 +80,11 @@ func (p *Prediction) AwardPoints(points int) error {
 	return nil
 }
 
-func (p *Prediction) IsCorrect(realRole string) bool {
+func (p *Prediction) IsCorrect(realRoleStr string) bool {
+	realRole, err := value_objects.FromString(realRoleStr)
+	if err != nil {
+		return false
+	}
 	return p.predictedRole == realRole
 }
 

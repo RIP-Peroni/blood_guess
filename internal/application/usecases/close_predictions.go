@@ -10,24 +10,22 @@ import (
 )
 
 var (
-	ErrNotGameCreator   = errors.New("only game creator can open predictions")
-	ErrInvalidGameState = errors.New("game is not in 'created' state")
-	ErrNoPlayersInGame  = errors.New("game has no players")
+	ErrPredictionsNotOpen = errors.New("predictions are not open")
 )
 
-// OpenPredictionsUseCase implements use case "opening predictions"
-type OpenPredictionsUseCase struct {
+// ClosePredictionsUseCase implements use case "closing predictions"
+type ClosePredictionsUseCase struct {
 	gameRepo ports.GameRepository
 }
 
-func NewOpenPredictionsUseCase(gameRepo ports.GameRepository) *OpenPredictionsUseCase {
-	return &OpenPredictionsUseCase{
+func NewClosePredictionsUseCase(gameRepo ports.GameRepository) *ClosePredictionsUseCase {
+	return &ClosePredictionsUseCase{
 		gameRepo: gameRepo,
 	}
 }
 
-// Execute executes opening of predictions
-func (uc *OpenPredictionsUseCase) Execute(command dto.OpenPredictionsCommand) (*dto.GameResponse, error) {
+// Execute executes closing of predictions
+func (uc *ClosePredictionsUseCase) Execute(command dto.ClosePredictionsCommand) (*dto.GameResponse, error) {
 	if err := command.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid command: %w", err)
 	}
@@ -41,16 +39,12 @@ func (uc *OpenPredictionsUseCase) Execute(command dto.OpenPredictionsCommand) (*
 		return nil, ErrNotGameCreator
 	}
 
-	if game.Status() != entities.GameStatusCreated {
-		return nil, fmt.Errorf("%w: current status is %s", ErrInvalidGameState, game.Status())
+	if game.Status() != entities.GameStatusPredictionsOpen {
+		return nil, fmt.Errorf("%w: current status is %s", ErrPredictionsNotOpen, game.Status())
 	}
 
-	if len(game.Players()) == 0 {
-		return nil, ErrNoPlayersInGame
-	}
-
-	if err := game.OpenPredictions(); err != nil {
-		return nil, fmt.Errorf("failed to open predictions: %w", err)
+	if err := game.ClosePredictions(); err != nil {
+		return nil, fmt.Errorf("failed to close predictions: %w", err)
 	}
 
 	if err := uc.gameRepo.Update(game); err != nil {
@@ -61,7 +55,7 @@ func (uc *OpenPredictionsUseCase) Execute(command dto.OpenPredictionsCommand) (*
 }
 
 // toResponse converts the domain entity into a response DTO
-func (uc *OpenPredictionsUseCase) toResponse(game *entities.Game) *dto.GameResponse {
+func (uc *ClosePredictionsUseCase) toResponse(game *entities.Game) *dto.GameResponse {
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{

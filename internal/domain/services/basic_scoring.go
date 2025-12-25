@@ -2,6 +2,7 @@ package services
 
 import (
 	"RIP-Peroni/blood_guess/internal/domain/entities"
+	"RIP-Peroni/blood_guess/internal/domain/value_objects"
 )
 
 type BasicScoringRules struct {
@@ -26,7 +27,7 @@ func NewBasicScoringRules() *BasicScoringRules {
 
 // CalculatePointsForUser calculates points for all user predictions
 // Returns the total score
-func (s *BasicScoringRules) CalculatePointsForUser(predictions []entities.Prediction, realRoles map[string]string) int {
+func (s *BasicScoringRules) CalculatePointsForUser(predictions []*entities.Prediction, realRoles map[string]string) int {
 	totalScore := 0
 
 	for _, prediction := range predictions {
@@ -78,7 +79,7 @@ func (s *BasicScoringRules) getPointsForRole(role string) int {
 	}
 }
 
-func (s *BasicScoringRules) getPenaltyForRole(role string) int {
+func (s *BasicScoringRules) getPenaltyForRole(role value_objects.Role) int {
 	switch role {
 	case "demon":
 		return s.penaltyForDemon

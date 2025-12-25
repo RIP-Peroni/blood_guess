@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"RIP-Peroni/blood_guess/internal/domain/value_objects"
 	"testing"
 	"time"
 
@@ -13,17 +14,17 @@ func TestPrediction_Entity(t *testing.T) {
 		userID := UserID("user-456")
 		slotID := PlayerSlotID("player-789")
 
-		prediction := NewPrediction(gameID, userID, slotID, "demon")
+		prediction, _ := NewPrediction(gameID, userID, slotID, "demon")
 
 		assert.Equal(t, gameID, prediction.GameID())
 		assert.Equal(t, userID, prediction.UserID())
 		assert.Equal(t, slotID, prediction.PlayerSlotID())
-		assert.Equal(t, "demon", prediction.PredictedRole())
+		assert.Equal(t, value_objects.Role("demon"), prediction.PredictedRole())
 		assert.Nil(t, prediction.pointsAwarded)
 		assert.WithinDuration(t, time.Now(), prediction.CreatedAt(), time.Second)
 	})
 	t.Run("verification of the prediction's correctness", func(t *testing.T) {
-		prediction := NewPrediction(
+		prediction, _ := NewPrediction(
 			"game-123",
 			"user-456",
 			"slot-789",
@@ -35,7 +36,7 @@ func TestPrediction_Entity(t *testing.T) {
 		assert.False(t, prediction.IsCorrect(""))
 	})
 	t.Run("scoring", func(t *testing.T) {
-		prediction := NewPrediction(
+		prediction, _ := NewPrediction(
 			"game-123",
 			"user-456",
 			"slot-789",

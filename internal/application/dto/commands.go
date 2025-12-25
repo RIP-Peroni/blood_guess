@@ -24,7 +24,7 @@ var validRoles = map[string]bool{
 	"outsider":  true,
 }
 
-// CreateGameCommand - team for creating a game
+// CreateGameCommand - command for creating a game
 type CreateGameCommand struct {
 	Name      string
 	CreatorID int64
@@ -46,7 +46,7 @@ func (c *CreateGameCommand) TrimmedName() string {
 	return strings.TrimSpace(c.Name)
 }
 
-// OpenPredictionsCommand - command for opening predictions
+// OpenPredictionsCommand - command to open predictions
 type OpenPredictionsCommand struct {
 	GameID  string
 	AdminID int64
@@ -139,6 +139,34 @@ func (c *FinishGameCommand) Validate() error {
 		if !IsValidRole(role) {
 			return ErrInvalidRole
 		}
+	}
+	return nil
+}
+
+// SetPlayerRoleCommand - command to set the player's real role
+type SetPlayerRoleCommand struct {
+	GameID       string
+	PlayerSlotID string
+	RealRole     string
+	AdminID      int64
+}
+
+// Validate checks the correctness of the role setting command
+func (c *SetPlayerRoleCommand) Validate() error {
+	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if c.PlayerSlotID == "" {
+		return ErrEmptyPlayerSlotID
+	}
+	if c.RealRole == "" {
+		return ErrEmptyPredictedRole
+	}
+	if !IsValidRole(c.RealRole) {
+		return ErrInvalidRole
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
 	}
 	return nil
 }

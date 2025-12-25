@@ -13,14 +13,14 @@ type GameRepository interface {
 	Save(game *entities.Game) error
 	FindByID(id entities.GameID) (*entities.Game, error)
 	FindActiveGames() ([]*entities.Game, error)
-	FindByStatus(status entities.GameStatus) (*entities.Game, error)
+	FindByStatus(status entities.GameStatus) ([]*entities.Game, error)
 	Update(game *entities.Game) error
 }
 
 type PredictionRepository interface {
 	Save(prediction *entities.Prediction) error
 	FindByID(id entities.PredictionID) (*entities.Prediction, error)
-	FindByGameAndUser(gameID entities.GameID, userID entities.UserID) (*entities.Prediction, error)
+	FindByGameAndUser(gameID entities.GameID, userID entities.UserID) ([]*entities.Prediction, error)
 	Update(prediction *entities.Prediction) error
-	Delete(id *entities.PredictionID) error
+	Delete(id entities.PredictionID) error
 }
