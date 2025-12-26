@@ -18,7 +18,7 @@ func TestStartHandler_Handle(t *testing.T) {
 			return false
 		}
 		return msg.ChatID == 12345 &&
-			msg.ParseMode == tgbotapi.ModeMarkdownV2 &&
+			msg.ParseMode == tgbotapi.ModeHTML &&
 			len(msg.Text) > 0
 	})
 
@@ -35,7 +35,7 @@ func TestStartHandler_Handle(t *testing.T) {
 				ID:        67890,
 				FirstName: "Test",
 				LastName:  "User",
-				UserName:  "testuser",
+				UserName:  "test_user",
 			},
 		},
 	}

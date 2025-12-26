@@ -21,13 +21,15 @@ func (b *Bot) handleCommand(update tgbotapi.Update) {
 	command := update.Message.Command()
 	handler, exists := b.handlers[command]
 	if !exists {
-		b.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Неизвестная команда: /%s", command))
+		b.SendMessage(update.Message.Chat.ID,
+			fmt.Sprintf("Неизвестная команда: /%s\n\nИспользуйте /help для списка команд", command))
 		return
 	}
 
 	if err := handler.Handle(update); err != nil {
 		log.Printf("Error handling command /%s: %v", command, err)
-		b.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Ошибка: /%v", err))
+		b.SendHTML(update.Message.Chat.ID,
+			fmt.Sprintf("❌ Произошла ошибка при обработке команды.\n\nОшибка: %v", err))
 	}
 }
 

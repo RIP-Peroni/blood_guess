@@ -2,19 +2,20 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type HelpHandler struct {
 	*BaseHandler
-	commands map[string]string //command -> description
+	commands map[string]string // command -> description
 }
 
 func NewHelpHandler(bot BotClient, commands map[string]string) *HelpHandler {
 	return &HelpHandler{
-		NewBaseHandler(bot),
-		commands,
+		BaseHandler: NewBaseHandler(bot),
+		commands:    commands,
 	}
 }
 
@@ -25,11 +26,24 @@ func (h *HelpHandler) Handle(update tgbotapi.Update) error {
 		return h.SendMessage(update.Message.Chat.ID, "Ошибка: не удалось определить пользователя", "")
 	}
 
-	msgConfig := tgbotapi.NewMessage(update.Message.Chat.ID, h.buildHelpMessage())
-	msgConfig.ParseMode = tgbotapi.ModeMarkdownV2
+	message := h.buildHelpMessage()
+	return h.SendHTML(update.Message.Chat.ID, message)
+}
 
-	_, err := h.bot.Send(msgConfig)
-	return err
+func (h *HelpHandler) buildHelpMessage() string {
+	var sb strings.Builder
+	sb.WriteString("<b>🩸 Доступные команды:</b>\n\n")
+
+	for cmd, desc := range h.commands {
+		// Экранируем описание команды
+		escapedDesc := h.EscapeHTML(desc)
+		sb.WriteString(fmt.Sprintf("• <code>/%s</code> - %s\n", cmd, escapedDesc))
+	}
+
+	sb.WriteString("\n\n")
+	sb.WriteString("<i>Играй в Кровь на Часовой Башне, делай прогнозы и получай школьные койны!</i> 🪙")
+
+	return sb.String()
 }
 
 func (h *HelpHandler) Command() string {
@@ -38,14 +52,4 @@ func (h *HelpHandler) Command() string {
 
 func (h *HelpHandler) Description() string {
 	return "Показать список команд"
-}
-
-func (h *HelpHandler) buildHelpMessage() string {
-	message := "🩸 *Доступные команды:*\n\n"
-	for cmd, desc := range h.commands {
-		message += fmt.Sprintf("* /%s - %s\n", cmd, desc)
-	}
-
-	message += "\n\n_Играй в Кровь на Часовой Башне, делай прогнозы и получай школьные койны!_🪙"
-	return message
 }

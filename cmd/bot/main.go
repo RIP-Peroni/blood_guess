@@ -1,6 +1,8 @@
 package main
 
 import (
+	"RIP-Peroni/blood_guess/internal/application/usecases"
+	"RIP-Peroni/blood_guess/internal/infrastructure/persistence"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/handlers"
 	"log"
@@ -20,6 +22,12 @@ func main() {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
 
+	uow := persistence.NewUnitOfWork()
+
+	createGameUseCase := usecases.NewCreateGameUseCase(uow.GameRepo)
+
+	botAPI := bot.GetAPI()
+
 	availableCommands := map[string]string{
 		"start":     "Начать работу с ботом",
 		"help":      "Показать список команд",
@@ -28,12 +36,15 @@ func main() {
 		"predict":   "Сделать прогноз на игру",
 		"mypredict": "Показать мои прогнозы",
 		"profile":   "Показать мой профиль",
+		"addplayer": "Добавить игрока в игру",
+		"openpred":  "Открыть прогнозы для игры",
+		"closepred": "Закрыть прогнозы для игры",
 	}
-
-	botAPI := bot.GetAPI()
 
 	bot.RegisterHandler(handlers.NewStartHandler(botAPI))
 	bot.RegisterHandler(handlers.NewHelpHandler(botAPI, availableCommands))
+	bot.RegisterHandler(handlers.NewNewGameHandler(botAPI, createGameUseCase))
+	bot.RegisterHandler(handlers.NewGamesHandler(botAPI, uow.GameRepo))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

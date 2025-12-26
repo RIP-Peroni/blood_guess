@@ -26,29 +26,29 @@ func (h *StartHandler) Handle(update tgbotapi.Update) error {
 
 	var username string
 	if user.UserName != "" {
-		username = fmt.Sprintf("@%s", user.UserName)
+		username = "@" + user.UserName
 	} else {
 		username = user.FirstName
 	}
 
-	message := fmt.Sprintf(`👋 Привет, %s!
+	// Экранируем username для HTML
+	escapedUsername := h.EscapeHTML(username)
 
-🎭 *Добро пожаловать в бота для угадывания ролей в игре "Кровь на Часовой Башне"!*
+	message := fmt.Sprintf(`<b>👋 Привет, %s!</b>
+
+🎭 <b>Добро пожаловать в бота для угадывания ролей в игре "Кровь на Часовой Башне"!</b>
 
 Я помогу тебе:
 • Создавать игры и добавлять игроков
 • Делать прогнозы на роли игроков
 • Получать очки за прогнозы и менять их на школьные койнсы!
 
-📚 Используй /help для списка команд
-🎮 Используй /newgame для создания новой игры
+<b>📚</b> Используй <code>/help</code> для списка команд
+<b>🎮</b> Используй <code>/newgame</code> для создания новой игры
 
-_Удачных прогнозов!_ 🎯`, username)
-	msgConfig := tgbotapi.NewMessage(update.Message.Chat.ID, message)
-	msgConfig.ParseMode = tgbotapi.ModeMarkdownV2
+<i>Удачных прогнозов!</i> 🎯`, escapedUsername)
 
-	_, err := h.bot.Send(msgConfig)
-	return err
+	return h.SendHTML(update.Message.Chat.ID, message)
 }
 
 func (h *StartHandler) Command() string {

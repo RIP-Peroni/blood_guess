@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -20,14 +21,6 @@ func NewMessageSender(bot BotClient) *MessageSender {
 // SendText sends a simple text message
 func (s *MessageSender) SendText(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
-	_, err := s.bot.Send(msg)
-	return err
-}
-
-// SendMarkdown sends a message with Markdown markup
-func (s *MessageSender) SendMarkdown(chatID int64, text string) error {
-	msg := tgbotapi.NewMessage(chatID, text)
-	msg.ParseMode = tgbotapi.ModeMarkdownV2
 	_, err := s.bot.Send(msg)
 	return err
 }
@@ -71,13 +64,32 @@ func NewBaseHandler(bot BotClient) *BaseHandler {
 // SendMessage sends a message with the specified format
 func (h *BaseHandler) SendMessage(chatID int64, text string, format string) error {
 	switch format {
-	case "markdown":
-		return h.sender.SendMarkdown(chatID, text)
 	case "html":
 		return h.sender.SendHTML(chatID, text)
 	default:
 		return h.sender.SendText(chatID, text)
 	}
+}
+
+// SendHTML is a shortcut for sending HTML messages
+func (h *BaseHandler) SendHTML(chatID int64, text string) error {
+	return h.sender.SendHTML(chatID, text)
+}
+
+// SendText is a shortcut for sending plain text messages
+func (h *BaseHandler) SendText(chatID int64, text string) error {
+	return h.sender.SendText(chatID, text)
+}
+
+// EscapeHTML escapes HTML special characters
+func (h *BaseHandler) EscapeHTML(text string) string {
+	// Экранируем базовые HTML символы
+	text = strings.ReplaceAll(text, "&", "&amp;")
+	text = strings.ReplaceAll(text, "<", "&lt;")
+	text = strings.ReplaceAll(text, ">", "&gt;")
+	text = strings.ReplaceAll(text, "\"", "&quot;")
+	text = strings.ReplaceAll(text, "'", "&#39;")
+	return text
 }
 
 // LogCommand logs command usage
