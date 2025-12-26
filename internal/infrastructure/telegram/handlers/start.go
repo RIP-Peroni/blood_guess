@@ -11,7 +11,7 @@ type StartHandler struct {
 	*BaseHandler
 }
 
-func NewStartHandler(bot *tgbotapi.BotAPI) *StartHandler {
+func NewStartHandler(bot BotClient) *StartHandler {
 	return &StartHandler{BaseHandler: NewBaseHandler(bot)}
 }
 
@@ -52,7 +52,7 @@ _Удачных прогнозов!_ 🎯`, username)
 }
 
 func (h *StartHandler) Command() string {
-	return "/start"
+	return "start"
 }
 
 func (h *StartHandler) Description() string {

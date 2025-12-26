@@ -11,7 +11,7 @@ type HelpHandler struct {
 	commands map[string]string //command -> description
 }
 
-func NewHelpHandler(bot *tgbotapi.BotAPI, commands map[string]string) *HelpHandler {
+func NewHelpHandler(bot BotClient, commands map[string]string) *HelpHandler {
 	return &HelpHandler{
 		NewBaseHandler(bot),
 		commands,

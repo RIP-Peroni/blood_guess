@@ -6,25 +6,25 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// ==================== MessageSender ====================
+// ===================== MessageSender ======================
 
-// MessageSender предоставляет удобные методы для отправки сообщений
+// MessageSender provides convenient methods for sending messages
 type MessageSender struct {
-	bot *tgbotapi.BotAPI
+	bot BotClient
 }
 
-func NewMessageSender(bot *tgbotapi.BotAPI) *MessageSender {
+func NewMessageSender(bot BotClient) *MessageSender {
 	return &MessageSender{bot: bot}
 }
 
-// SendText отправляет простое текстовое сообщение
+// SendText sends a simple text message
 func (s *MessageSender) SendText(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := s.bot.Send(msg)
 	return err
 }
 
-// SendMarkdown отправляет сообщение с Markdown разметкой
+// SendMarkdown sends a message with Markdown markup
 func (s *MessageSender) SendMarkdown(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = tgbotapi.ModeMarkdownV2
@@ -32,7 +32,7 @@ func (s *MessageSender) SendMarkdown(chatID int64, text string) error {
 	return err
 }
 
-// SendHTML отправляет сообщение с HTML разметкой
+// SendHTML sends a message with HTML markup
 func (s *MessageSender) SendHTML(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = tgbotapi.ModeHTML
@@ -40,7 +40,7 @@ func (s *MessageSender) SendHTML(chatID int64, text string) error {
 	return err
 }
 
-// Reply отвечает на сообщение
+// Reply responds to the message
 func (s *MessageSender) Reply(update tgbotapi.Update, text string, parseMode string) error {
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
 	if parseMode != "" {
@@ -51,16 +51,16 @@ func (s *MessageSender) Reply(update tgbotapi.Update, text string, parseMode str
 	return err
 }
 
-// ==================== BaseHandler ====================
+// ====================== BaseHandler ======================
 
-// BaseHandler предоставляет общую функциональность для всех обработчиков
+// BaseHandler provides common functionality for all handlers
 type BaseHandler struct {
-	bot    *tgbotapi.BotAPI
+	bot    BotClient
 	sender *MessageSender
 	logger *log.Logger
 }
 
-func NewBaseHandler(bot *tgbotapi.BotAPI) *BaseHandler {
+func NewBaseHandler(bot BotClient) *BaseHandler {
 	return &BaseHandler{
 		bot:    bot,
 		sender: NewMessageSender(bot),
@@ -68,7 +68,7 @@ func NewBaseHandler(bot *tgbotapi.BotAPI) *BaseHandler {
 	}
 }
 
-// SendMessage отправляет сообщение с указанным форматом
+// SendMessage sends a message with the specified format
 func (h *BaseHandler) SendMessage(chatID int64, text string, format string) error {
 	switch format {
 	case "markdown":
@@ -80,7 +80,7 @@ func (h *BaseHandler) SendMessage(chatID int64, text string, format string) erro
 	}
 }
 
-// LogCommand логирует использование команды
+// LogCommand logs command usage
 func (h *BaseHandler) LogCommand(update tgbotapi.Update, command string) {
 	user := update.Message.From
 	h.logger.Printf("Command /%s from user %d (%s %s @%s)",
@@ -92,12 +92,12 @@ func (h *BaseHandler) LogCommand(update tgbotapi.Update, command string) {
 	)
 }
 
-// RequireUser проверяет, что пользователь существует
+// RequireUser checks that the user exists
 func (h *BaseHandler) RequireUser(update tgbotapi.Update) bool {
 	return update.Message != nil && update.Message.From != nil
 }
 
-// GetUserID возвращает ID пользователя
+// GetUserID returns the user ID
 func (h *BaseHandler) GetUserID(update tgbotapi.Update) int64 {
 	if !h.RequireUser(update) {
 		return 0
