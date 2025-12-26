@@ -1,1 +1,53 @@
 package main
+
+import (
+	"RIP-Peroni/blood_guess/internal/infrastructure/telegram"
+	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/handlers"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+)
+
+func main() {
+	config, err := telegram.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	bot, err := telegram.NewBot(config)
+	if err != nil {
+		log.Fatalf("Failed to create bot: %v", err)
+	}
+
+	availableCommands := map[string]string{
+		"start":     "Начать работу с ботом",
+		"help":      "Показать список команд",
+		"newgame":   "Создать новую игру",
+		"games":     "Показать активные игры",
+		"predict":   "Сделать прогноз на игру",
+		"mypredict": "Показать мои прогнозы",
+		"profile":   "Показать мой профиль",
+	}
+
+	botAPI := bot.GetAPI()
+
+	bot.RegisterHandler(handlers.NewStartHandler(botAPI))
+	bot.RegisterHandler(handlers.NewHelpHandler(botAPI, availableCommands))
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := bot.Start(); err != nil {
+			log.Printf("Bot stopped with error: %v", err)
+			sigChan <- syscall.SIGTERM
+		}
+	}()
+
+	sig := <-sigChan
+	log.Printf("Received signal: %v", sig)
+
+	bot.Stop()
+	log.Printf("Application stopped")
+}
