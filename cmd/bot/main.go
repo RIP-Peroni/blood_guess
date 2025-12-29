@@ -27,7 +27,11 @@ func main() {
 	createGameUseCase := usecases.NewCreateGameUseCase(uow.GameRepo)
 	openPredictionsUseCase := usecases.NewOpenPredictionsUseCase(uow.GameRepo)
 	closePredictionsUseCase := usecases.NewClosePredictionsUseCase(uow.GameRepo)
-
+	submitPredictionUseCase := usecases.NewSubmitPredictionUseCase(
+		uow.GameRepo,
+		uow.UserRepo,
+		uow.PredictionRepo,
+	)
 	addPlayerUseCase := usecases.NewAddPlayerUseCase(uow.GameRepo)
 
 	botAPI := bot.GetAPI()
@@ -37,18 +41,27 @@ func main() {
 		"help":      "Показать список команд",
 		"newgame":   "Создать новую игру",
 		"games":     "Показать активные игры",
+		"gameinfo":  "Показать информацию об игре",
 		"addplayer": "Добавить игрока в игру",
 		"openpred":  "Открыть прогнозы для игры",
 		"closepred": "Закрыть прогнозы для игры",
+		"predict":   "Сделать прогноз на игру",
+		"mypredict": "Показать мои прогнозы",
+		"profile":   "Показать мой профиль",
+		"startgame": "Начать реальную игру (после закрытия прогнозов)",
+		"setrole":   "Установить реальную роль игрока",
+		"finish":    "Завершить игру и подсчитать результаты",
 	}
 
 	bot.RegisterHandler(handlers.NewStartHandler(botAPI))
 	bot.RegisterHandler(handlers.NewHelpHandler(botAPI, availableCommands))
 	bot.RegisterHandler(handlers.NewNewGameHandler(botAPI, createGameUseCase))
 	bot.RegisterHandler(handlers.NewGamesHandler(botAPI, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewGameInfoHandler(botAPI, uow.GameRepo, uow.UserRepo, uow.PredictionRepo))
 	bot.RegisterHandler(handlers.NewAddPlayerHandler(botAPI, addPlayerUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewPredictHandler(botAPI, submitPredictionUseCase, uow.GameRepo, uow.UserRepo))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

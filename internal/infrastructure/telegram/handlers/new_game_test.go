@@ -1,4 +1,4 @@
-// Файл: ./internal/infrastructure/telegram/handlers/newgame_test.go
+// Файл: ./internal/infrastructure/telegram/handlers/new_game_test.go
 package handlers
 
 import (
