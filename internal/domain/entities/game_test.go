@@ -21,34 +21,27 @@ func TestGame_NewGame(t *testing.T) {
 }
 
 func TestGame_AddPlayer(t *testing.T) {
-	t.Run("adding player to game", func(t *testing.T) {
+	t.Run("adding player to game without user ID", func(t *testing.T) {
 		game := NewGame("Test game", 12345)
 
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 		assert.Len(t, game.Players(), 1)
 
 		player := game.Players()[0]
-		assert.Equal(t, int64(11111), player.UserID)
-		assert.Equal(t, "player 1", player.Name)
+		assert.Equal(t, "Player 1", player.Name)
 		assert.Equal(t, "townsfolk", player.AssignedRole)
 		assert.Empty(t, player.RealRole)
 		assert.False(t, player.IsRealRoleSet)
 	})
-	t.Run("can't add a player with empty name", func(t *testing.T) {
+
+	t.Run("can't add player with duplicate name", func(t *testing.T) {
 		game := NewGame("Test game", 12345)
 
-		err := game.AddPlayer(11111, "", "townsfolk")
-		assert.Error(t, err)
-		assert.Len(t, game.Players(), 0)
-	})
-	t.Run("can't add same player twice", func(t *testing.T) {
-		game := NewGame("Test game", 12345)
-
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
-		err = game.AddPlayer(11111, "player 1", "outsider")
+		err = game.AddPlayer("Player 1", "outsider")
 		assert.Error(t, err)
 		assert.Len(t, game.Players(), 1)
 	})
@@ -57,7 +50,7 @@ func TestGame_AddPlayer(t *testing.T) {
 func TestGame_OpenPredictions(t *testing.T) {
 	t.Run("successfully open predictions", func(t *testing.T) {
 		game := NewGame("Test game", 12345)
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -73,7 +66,7 @@ func TestGame_OpenPredictions(t *testing.T) {
 	})
 	t.Run("can't open predictions for finished game", func(t *testing.T) {
 		game := NewGame("Test game", 12345)
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -97,7 +90,7 @@ func TestGame_OpenPredictions(t *testing.T) {
 func TestGame_ClosePredictions(t *testing.T) {
 	t.Run("successfully close predictions", func(t *testing.T) {
 		game := NewGame("Test game", 12345)
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -109,7 +102,7 @@ func TestGame_ClosePredictions(t *testing.T) {
 	})
 	t.Run("can't close predictions if they are not opened", func(t *testing.T) {
 		game := NewGame("Test game", 12345)
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
 		err = game.ClosePredictions()
@@ -132,7 +125,7 @@ func TestGame_CanAcceptPredictions(t *testing.T) {
 		{
 			name: "Predictions are opened - game can accept a prediction",
 			setup: func(g *Game) {
-				err := g.AddPlayer(11111, "player 1", "townsfolk")
+				err := g.AddPlayer("Player 1", "townsfolk")
 				assert.NoError(t, err)
 
 				err = g.OpenPredictions()
@@ -144,7 +137,7 @@ func TestGame_CanAcceptPredictions(t *testing.T) {
 		{
 			name: "Predictions are closed - game can not accept a prediction",
 			setup: func(g *Game) {
-				err := g.AddPlayer(11111, "player 1", "townsfolk")
+				err := g.AddPlayer("Player 1", "townsfolk")
 				assert.NoError(t, err)
 
 				err = g.OpenPredictions()
@@ -159,7 +152,7 @@ func TestGame_CanAcceptPredictions(t *testing.T) {
 		{
 			name: "game finished - can't accept a prediction",
 			setup: func(g *Game) {
-				err := g.AddPlayer(11111, "player 1", "townsfolk")
+				err := g.AddPlayer("Player 1", "townsfolk")
 				assert.NoError(t, err)
 
 				err = g.OpenPredictions()
@@ -193,7 +186,7 @@ func TestGame_CanAcceptPredictions(t *testing.T) {
 func TestGame_SetPlayerRealRole(t *testing.T) {
 	t.Run("set real role to a player", func(t *testing.T) {
 		game := NewGame("Test Game", 12345)
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
 		playerID := game.Players()[0].ID
@@ -211,7 +204,7 @@ func TestGame_SetPlayerRealRole(t *testing.T) {
 	})
 	t.Run("can't set an empty role", func(t *testing.T) {
 		game := NewGame("Test Game", 12345)
-		err := game.AddPlayer(11111, "player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		assert.NoError(t, err)
 
 		playerID := game.Players()[0].ID

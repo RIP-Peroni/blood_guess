@@ -14,6 +14,7 @@ var (
 	ErrEmptyPredictedRole = errors.New("predicted role cannot be empty")
 	ErrInvalidRole        = errors.New("invalid role")
 	ErrEmptyAdminID       = errors.New("admin ID cannot be empty")
+	ErrEmptyPlayerName    = errors.New("player name cannot be empty")
 )
 
 // List of allowed roles for the game "Blood on the Clocktower"
@@ -44,6 +45,34 @@ func (c *CreateGameCommand) Validate() error {
 // TrimmedName returns the game name without extra spaces
 func (c *CreateGameCommand) TrimmedName() string {
 	return strings.TrimSpace(c.Name)
+}
+
+// AddPlayerCommand - команда для добавления игрока
+type AddPlayerCommand struct {
+	GameID       string
+	PlayerName   string
+	AssignedRole string
+	AdminID      int64
+}
+
+// Validate checks the correctness of the player add command
+func (c *AddPlayerCommand) Validate() error {
+	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if strings.TrimSpace(c.PlayerName) == "" {
+		return ErrEmptyPlayerName
+	}
+	if c.AssignedRole == "" {
+		return ErrEmptyPredictedRole
+	}
+	if !IsValidRole(c.AssignedRole) {
+		return ErrInvalidRole
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
+	}
+	return nil
 }
 
 // OpenPredictionsCommand - command to open predictions

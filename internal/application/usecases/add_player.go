@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"errors"
 	"fmt"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
@@ -8,19 +9,24 @@ import (
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 )
 
-// OpenPredictionsUseCase implements use case "opening predictions"
-type OpenPredictionsUseCase struct {
+var (
+	ErrGameNotInCreatedState = errors.New("game is not in 'created' state")
+	ErrDuplicatePlayerName   = errors.New("player with this name already exists in the game")
+)
+
+// AddPlayerUseCase implements use case "adding player to game"
+type AddPlayerUseCase struct {
 	gameRepo ports.GameRepository
 }
 
-func NewOpenPredictionsUseCase(gameRepo ports.GameRepository) *OpenPredictionsUseCase {
-	return &OpenPredictionsUseCase{
+func NewAddPlayerUseCase(gameRepo ports.GameRepository) *AddPlayerUseCase {
+	return &AddPlayerUseCase{
 		gameRepo: gameRepo,
 	}
 }
 
-// Execute executes opening of predictions
-func (uc *OpenPredictionsUseCase) Execute(command dto.OpenPredictionsCommand) (*dto.GameResponse, error) {
+// Execute executes adding a player to the game
+func (uc *AddPlayerUseCase) Execute(command dto.AddPlayerCommand) (*dto.GameResponse, error) {
 	if err := command.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid command: %w", err)
 	}
@@ -30,22 +36,25 @@ func (uc *OpenPredictionsUseCase) Execute(command dto.OpenPredictionsCommand) (*
 		return nil, ErrGameNotFound
 	}
 
+	// Проверяем, что пользователь - создатель игры
 	if game.CreatorID() != command.AdminID {
 		return nil, ErrNotGameCreator
 	}
 
+	// Проверяем, что игра находится в состоянии created (можно добавлять игроков)
 	if game.Status() != entities.GameStatusCreated {
-		return nil, fmt.Errorf("%w: current status is %s", ErrInvalidGameState, game.Status())
+		return nil, fmt.Errorf("%w: current status is %s", ErrGameNotInCreatedState, game.Status())
 	}
 
-	if len(game.Players()) == 0 {
-		return nil, ErrNoPlayersInGame
+	// Добавляем игрока
+	if err := game.AddPlayer(command.PlayerName, command.AssignedRole); err != nil {
+		if err.Error() == "player with this name already exists in this game" {
+			return nil, ErrDuplicatePlayerName
+		}
+		return nil, fmt.Errorf("failed to add player: %w", err)
 	}
 
-	if err := game.OpenPredictions(); err != nil {
-		return nil, fmt.Errorf("failed to open predictions: %w", err)
-	}
-
+	// Сохраняем обновленную игру
 	if err := uc.gameRepo.Update(game); err != nil {
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
@@ -54,7 +63,7 @@ func (uc *OpenPredictionsUseCase) Execute(command dto.OpenPredictionsCommand) (*
 }
 
 // toResponse converts the domain entity into a response DTO
-func (uc *OpenPredictionsUseCase) toResponse(game *entities.Game) *dto.GameResponse {
+func (uc *AddPlayerUseCase) toResponse(game *entities.Game) *dto.GameResponse {
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{

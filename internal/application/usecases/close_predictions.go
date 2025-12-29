@@ -1,16 +1,11 @@
 package usecases
 
 import (
-	"errors"
 	"fmt"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
-)
-
-var (
-	ErrPredictionsNotOpen = errors.New("predictions are not open")
 )
 
 // ClosePredictionsUseCase implements use case "closing predictions"

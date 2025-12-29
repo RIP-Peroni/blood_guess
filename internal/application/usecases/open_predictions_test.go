@@ -20,7 +20,7 @@ func TestOpenPredictionsUseCase(t *testing.T) {
 	t.Run("successful opening of predictions", func(t *testing.T) {
 		// Creating a game in the created state
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer(111, "Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		require.NoError(t, err)
 
 		err = gameRepo.Save(game)
@@ -63,7 +63,7 @@ func TestOpenPredictionsUseCase(t *testing.T) {
 
 	t.Run("Error opening predictions by someone other than the game creator", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345) // creator ID 12345
-		err := game.AddPlayer(111, "Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		require.NoError(t, err)
 
 		err = gameRepo.Save(game)
@@ -80,7 +80,7 @@ func TestOpenPredictionsUseCase(t *testing.T) {
 
 	t.Run("error opening predictions for a game in an invalid state", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer(111, "Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		require.NoError(t, err)
 
 		// Opening predictions
@@ -101,7 +101,7 @@ func TestOpenPredictionsUseCase(t *testing.T) {
 
 	t.Run("error opening predictions for a completed game", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer(111, "Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1", "townsfolk")
 		require.NoError(t, err)
 
 		// Simulate the full game cycle

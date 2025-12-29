@@ -19,8 +19,8 @@ func SetupTestFixture() *TestFixture {
 	predictionRepo := persistence.NewInMemoryPredictionRepository()
 
 	game := entities.NewGame("Test Game", 12345)
-	_ = game.AddPlayer(111, "Player 1", "townsfolk")
-	_ = game.AddPlayer(222, "Player 2", "outsider")
+	_ = game.AddPlayer("Player 1", "townsfolk")
+	_ = game.AddPlayer("Player 2", "outsider")
 	_ = game.OpenPredictions()
 	_ = gameRepo.Save(game)
 

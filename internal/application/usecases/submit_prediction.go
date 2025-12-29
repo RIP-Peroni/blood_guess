@@ -1,20 +1,11 @@
 package usecases
 
 import (
-	"errors"
 	"fmt"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
-)
-
-var (
-	ErrGameNotFound                = errors.New("game not found")
-	ErrUserNotFound                = errors.New("user not found")
-	ErrPlayerSlotNotFound          = errors.New("player slot not found")
-	ErrGameNotAcceptingPredictions = errors.New("game is not accepting predictions")
-	ErrAlreadyPredicted            = errors.New("user already predicted for this player slot")
 )
 
 // SubmitPredictionUseCase implements use case "submitting prediction"

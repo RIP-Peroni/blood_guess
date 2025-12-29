@@ -31,7 +31,6 @@ const (
 
 type PlayerSlot struct {
 	ID            PlayerSlotID
-	UserID        int64
 	Name          string
 	AssignedRole  string
 	RealRole      string
@@ -84,20 +83,20 @@ func (g *Game) CreatedAt() time.Time {
 	return g.createdAt
 }
 
-func (g *Game) AddPlayer(userID int64, name string, assignedRole string) error {
+func (g *Game) AddPlayer(name string, assignedRole string) error {
 	if name == "" {
 		return ErrEmptyPlayerName
 	}
 
+	// Check the uniqueness of the name within the game
 	for _, player := range g.players {
-		if player.UserID == userID {
-			return ErrPlayerAlreadyAdded
+		if player.Name == name {
+			return errors.New("player with this name already exists in this game")
 		}
 	}
 
 	player := PlayerSlot{
 		ID:            PlayerSlotID(uuid.New().String()),
-		UserID:        userID,
 		Name:          name,
 		AssignedRole:  assignedRole,
 		RealRole:      "",
