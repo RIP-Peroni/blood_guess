@@ -25,6 +25,10 @@ func main() {
 	uow := persistence.NewUnitOfWork()
 
 	createGameUseCase := usecases.NewCreateGameUseCase(uow.GameRepo)
+	openPredictionsUseCase := usecases.NewOpenPredictionsUseCase(uow.GameRepo)
+	closePredictionsUseCase := usecases.NewClosePredictionsUseCase(uow.GameRepo)
+
+	addPlayerUseCase := usecases.NewAddPlayerUseCase(uow.GameRepo)
 
 	botAPI := bot.GetAPI()
 
@@ -33,9 +37,6 @@ func main() {
 		"help":      "Показать список команд",
 		"newgame":   "Создать новую игру",
 		"games":     "Показать активные игры",
-		"predict":   "Сделать прогноз на игру",
-		"mypredict": "Показать мои прогнозы",
-		"profile":   "Показать мой профиль",
 		"addplayer": "Добавить игрока в игру",
 		"openpred":  "Открыть прогнозы для игры",
 		"closepred": "Закрыть прогнозы для игры",
@@ -45,11 +46,15 @@ func main() {
 	bot.RegisterHandler(handlers.NewHelpHandler(botAPI, availableCommands))
 	bot.RegisterHandler(handlers.NewNewGameHandler(botAPI, createGameUseCase))
 	bot.RegisterHandler(handlers.NewGamesHandler(botAPI, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewAddPlayerHandler(botAPI, addPlayerUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, uow.GameRepo))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
+		log.Println("Starting bot...")
 		if err := bot.Start(); err != nil {
 			log.Printf("Bot stopped with error: %v", err)
 			sigChan <- syscall.SIGTERM
@@ -60,5 +65,5 @@ func main() {
 	log.Printf("Received signal: %v", sig)
 
 	bot.Stop()
-	log.Printf("Application stopped")
+	log.Println("Application stopped")
 }

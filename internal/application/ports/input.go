@@ -4,22 +4,32 @@ import (
 	"RIP-Peroni/blood_guess/internal/application/dto"
 )
 
-// CreateGameInput - port for game creation
+// CreateGameInput - port for creating a game
 type CreateGameInput interface {
 	Execute(command dto.CreateGameCommand) (*dto.GameResponse, error)
 }
 
-// SubmitPredictionInput - port for prediction sending
-type SubmitPredictionInput interface {
-	Execute(command dto.SubmitPredictionCommand) (*dto.PredictionResponse, error)
+// AddPlayerInput - port for adding a player
+type AddPlayerInput interface {
+	Execute(command dto.AddPlayerCommand) (*dto.GameResponse, error)
 }
 
-// OpenPredictionsInput - port for predictions opening
+// OpenPredictionsInput - port for opening predictions
 type OpenPredictionsInput interface {
 	Execute(command dto.OpenPredictionsCommand) (*dto.GameResponse, error)
 }
 
-// CalculateResultsInput - port for scoring results
+// ClosePredictionsInput - port for closing predictions
+type ClosePredictionsInput interface {
+	Execute(command dto.ClosePredictionsCommand) (*dto.GameResponse, error)
+}
+
+// SubmitPredictionInput - port for sending the prediction
+type SubmitPredictionInput interface {
+	Execute(command dto.SubmitPredictionCommand) (*dto.PredictionResponse, error)
+}
+
+// CalculateResultsInput - port for calculating results
 type CalculateResultsInput interface {
 	Execute(command dto.FinishGameCommand) (map[string]int, error) //[userID]points
 }
