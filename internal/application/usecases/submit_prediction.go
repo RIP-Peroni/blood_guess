@@ -66,7 +66,7 @@ func (uc *SubmitPredictionUseCase) Execute(command dto.SubmitPredictionCommand) 
 		}
 	}
 
-	prediction, err := entities.NewPrediction(
+	pred, err := entities.NewPrediction(
 		entities.GameID(command.GameID),
 		entities.UserID(command.UserID),
 		entities.PlayerSlotID(command.PlayerSlotID),
@@ -76,11 +76,11 @@ func (uc *SubmitPredictionUseCase) Execute(command dto.SubmitPredictionCommand) 
 		return nil, fmt.Errorf("failed to create prediction: %w", err)
 	}
 
-	if err := uc.predictionRepo.Save(prediction); err != nil {
+	if err := uc.predictionRepo.Save(pred); err != nil {
 		return nil, fmt.Errorf("failed to save prediction: %w", err)
 	}
 
-	return uc.toResponse(prediction), nil
+	return uc.toResponse(pred), nil
 }
 
 // playerSlotExists checks if the player slot exists in the game

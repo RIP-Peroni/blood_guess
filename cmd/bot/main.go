@@ -2,6 +2,7 @@ package main
 
 import (
 	"RIP-Peroni/blood_guess/internal/application/usecases"
+	"RIP-Peroni/blood_guess/internal/domain/services"
 	"RIP-Peroni/blood_guess/internal/infrastructure/persistence"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/handlers"
@@ -33,6 +34,14 @@ func main() {
 		uow.PredictionRepo,
 	)
 	addPlayerUseCase := usecases.NewAddPlayerUseCase(uow.GameRepo)
+	startGameUseCase := usecases.NewStartGameUseCase(uow.GameRepo)
+	scoringService := services.NewBasicScoringRules()
+	finishGameUseCase := usecases.NewFinishGameUseCase(
+		uow.GameRepo,
+		uow.UserRepo,
+		uow.PredictionRepo,
+		scoringService,
+	)
 
 	botAPI := bot.GetAPI()
 
@@ -62,6 +71,8 @@ func main() {
 	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewPredictHandler(botAPI, submitPredictionUseCase, uow.GameRepo, uow.UserRepo))
+	bot.RegisterHandler(handlers.NewStartGameHandler(botAPI, startGameUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewFinishGameHandler(botAPI, finishGameUseCase, uow.GameRepo))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

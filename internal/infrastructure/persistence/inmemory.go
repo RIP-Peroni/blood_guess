@@ -205,6 +205,19 @@ func (r *InMemoryPredictionRepository) FindByGameAndUser(gameID entities.GameID,
 	return result, nil
 }
 
+func (r *InMemoryPredictionRepository) FindByGame(gameID entities.GameID) ([]*entities.Prediction, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*entities.Prediction
+	for _, prediction := range r.predictions {
+		if prediction.GameID() == gameID {
+			result = append(result, prediction)
+		}
+	}
+	return result, nil
+}
+
 func (r *InMemoryPredictionRepository) Update(prediction *entities.Prediction) error {
 	if prediction == nil {
 		return ErrNilEntity

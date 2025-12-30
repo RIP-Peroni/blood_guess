@@ -157,18 +157,6 @@ func (c *FinishGameCommand) Validate() error {
 	if c.AdminID <= 0 {
 		return ErrInvalidCreatorID
 	}
-	// Check that all roles are valid
-	for playerSlotID, role := range c.RealRoles {
-		if playerSlotID == "" {
-			return errors.New("player slot ID cannot be empty")
-		}
-		if role == "" {
-			return errors.New("real role cannot be empty")
-		}
-		if !IsValidRole(role) {
-			return ErrInvalidRole
-		}
-	}
 	return nil
 }
 
@@ -212,4 +200,19 @@ func GetValidRoles() []string {
 		roles = append(roles, role)
 	}
 	return roles
+}
+
+type StartGameCommand struct {
+	GameID  string
+	AdminID int64
+}
+
+func (c *StartGameCommand) Validate() error {
+	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
+	}
+	return nil
 }

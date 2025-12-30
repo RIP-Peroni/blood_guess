@@ -214,3 +214,38 @@ func TestGame_SetPlayerRealRole(t *testing.T) {
 		assert.False(t, game.Players()[0].IsRealRoleSet)
 	})
 }
+
+func TestGame_Start(t *testing.T) {
+	t.Run("successful game start", func(t *testing.T) {
+		game := NewGame("Test Game", 12345)
+		err := game.AddPlayer("Player 1", "townsfolk")
+		assert.NoError(t, err)
+
+		err = game.OpenPredictions()
+		assert.NoError(t, err)
+
+		err = game.ClosePredictions()
+		assert.NoError(t, err)
+
+		err = game.Start()
+		assert.NoError(t, err)
+
+		assert.Equal(t, GameStatusInProgress, game.Status())
+		assert.NotNil(t, game.StartedAt())
+	})
+
+	t.Run("cannot start game without closing predictions", func(t *testing.T) {
+		game := NewGame("Test Game", 12345)
+		err := game.AddPlayer("Player 1", "townsfolk")
+		assert.NoError(t, err)
+
+		err = game.OpenPredictions()
+		assert.NoError(t, err)
+
+		// Don't close predictions
+		err = game.Start()
+		assert.Error(t, err)
+		assert.Equal(t, GameStatusPredictionsOpen, game.Status())
+		assert.Nil(t, game.StartedAt())
+	})
+}

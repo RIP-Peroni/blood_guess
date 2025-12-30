@@ -81,3 +81,37 @@ func TestUser_UserCanMakePrediction(t *testing.T) {
 		assert.True(t, canPredict)
 	})
 }
+
+func TestUser_ChangeBalance(t *testing.T) {
+	user := NewUser(12345, "test_user")
+
+	t.Run("add positive points", func(t *testing.T) {
+		newBalance, err := user.ChangeBalance(100)
+		assert.NoError(t, err)
+		assert.Equal(t, 100, newBalance)
+		assert.Equal(t, 100, user.Balance())
+	})
+
+	t.Run("add negative points but stays positive", func(t *testing.T) {
+		// Balance 100, subtract 30 -> 70 remains
+		newBalance, err := user.ChangeBalance(-30)
+		assert.NoError(t, err)
+		assert.Equal(t, 70, newBalance)
+		assert.Equal(t, 70, user.Balance())
+	})
+
+	t.Run("add negative points that would go negative, sets to zero", func(t *testing.T) {
+		// Balance is 70, subtract 100 -> it should become 0, not -30
+		newBalance, err := user.ChangeBalance(-100)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, newBalance)
+		assert.Equal(t, 0, user.Balance())
+	})
+
+	t.Run("add positive points after zero", func(t *testing.T) {
+		newBalance, err := user.ChangeBalance(50)
+		assert.NoError(t, err)
+		assert.Equal(t, 50, newBalance)
+		assert.Equal(t, 50, user.Balance())
+	})
+}

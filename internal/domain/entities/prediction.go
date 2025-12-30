@@ -9,8 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type PredictionID string
-
 type Prediction struct {
 	id            PredictionID
 	gameID        GameID

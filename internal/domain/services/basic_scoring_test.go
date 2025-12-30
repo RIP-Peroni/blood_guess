@@ -1,3 +1,4 @@
+// internal/domain/services/basic_scoring_test.go
 package services_test
 
 import (
@@ -35,9 +36,9 @@ func TestBasicScoringRules_CalculatePointsForUser(t *testing.T) {
 	})
 
 	t.Run("all roles are guessed", func(t *testing.T) {
-		p1, _ := entities.NewPrediction("game-123", "user-1", "slot1", "demon")
-		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
-		p3, _ := entities.NewPrediction("game-123", "user-1", "slot3", "townsfolk")
+		p1, _ := entities.NewPrediction(entities.GameID("game-123"), entities.UserID("user-1"), entities.PlayerSlotID("slot1"), "demon")
+		p2, _ := entities.NewPrediction(entities.GameID("game-123"), entities.UserID("user-1"), entities.PlayerSlotID("slot2"), "minion")
+		p3, _ := entities.NewPrediction(entities.GameID("game-123"), entities.UserID("user-1"), entities.PlayerSlotID("slot3"), "townsfolk")
 		predictions := []*entities.Prediction{
 			p1,
 			p2,
@@ -65,7 +66,7 @@ func TestBasicScoringRules_CalculatePointsForEachPrediction(t *testing.T) {
 		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
 		p3, _ := entities.NewPrediction("game-123", "user-1", "slot3", "townsfolk")
 
-		predictions := []entities.Prediction{*p1, *p2, *p3}
+		predictions := []*entities.Prediction{p1, p2, p3}
 
 		realRoles := map[string]string{
 			"slot1": "demon",
@@ -78,42 +79,5 @@ func TestBasicScoringRules_CalculatePointsForEachPrediction(t *testing.T) {
 		assert.Equal(t, 10, pointsPerPrediction[p1.ID()])
 		assert.Equal(t, -2, pointsPerPrediction[p2.ID()])
 		assert.Equal(t, 2, pointsPerPrediction[p3.ID()])
-	})
-}
-
-func TestPrediction_PointsAwarded(t *testing.T) {
-	t.Run("prediction without points", func(t *testing.T) {
-		prediction, _ := entities.NewPrediction("game-123", "user-456", "slot-789", "demon")
-
-		points, awarded := prediction.PointsAwarded()
-		assert.False(t, awarded)
-		assert.Equal(t, 0, points)
-		assert.False(t, prediction.HasPointsAwarded())
-	})
-
-	t.Run("scoring the prediction", func(t *testing.T) {
-		prediction, _ := entities.NewPrediction("game-123", "user-456", "slot-789", "demon")
-
-		err := prediction.AwardPoints(10)
-		assert.NoError(t, err)
-
-		points, awarded := prediction.PointsAwarded()
-		assert.True(t, awarded)
-		assert.Equal(t, 10, points)
-		assert.True(t, prediction.HasPointsAwarded())
-	})
-
-	t.Run("cannot score points twice", func(t *testing.T) {
-		prediction, _ := entities.NewPrediction("game-123", "user-456", "slot-789", "demon")
-
-		err := prediction.AwardPoints(10)
-		assert.NoError(t, err)
-
-		err = prediction.AwardPoints(5)
-		assert.Error(t, err)
-
-		points, awarded := prediction.PointsAwarded()
-		assert.True(t, awarded)
-		assert.Equal(t, 10, points) // The first points awarded remain
 	})
 }

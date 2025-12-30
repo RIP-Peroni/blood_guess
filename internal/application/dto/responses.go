@@ -49,3 +49,29 @@ type CalculateResultsResponse struct {
 	GameID string
 	Scores map[string]int // UserID -> Points
 }
+
+type FinishGameResponse struct {
+	GameID          string
+	Name            string
+	Status          entities.GameStatus
+	PlayerResults   []PlayerResultResponse
+	UserScores      map[string]int // userID -> totalScore
+	CurrencyAwarded bool
+	EndedAt         time.Time
+}
+
+type PlayerResultResponse struct {
+	PlayerID     string
+	PlayerName   string
+	AssignedRole string
+	RealRole     string
+	Predictions  []PredictionResultResponse
+}
+
+type PredictionResultResponse struct {
+	UserID        string
+	Username      string
+	PredictedRole string
+	Points        int
+	IsCorrect     bool
+}

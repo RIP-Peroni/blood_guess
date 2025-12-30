@@ -21,6 +21,7 @@ type PredictionRepository interface {
 	Save(prediction *entities.Prediction) error
 	FindByID(id entities.PredictionID) (*entities.Prediction, error)
 	FindByGameAndUser(gameID entities.GameID, userID entities.UserID) ([]*entities.Prediction, error)
+	FindByGame(gameID entities.GameID) ([]*entities.Prediction, error)
 	Update(prediction *entities.Prediction) error
 	Delete(id entities.PredictionID) error
 }

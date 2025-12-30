@@ -16,9 +16,6 @@ var (
 	ErrEmptyRole          = errors.New("role cannot be empty")
 )
 
-type GameID string
-type PlayerSlotID string
-
 type GameStatus string
 
 const (
@@ -81,6 +78,14 @@ func (g *Game) Players() []PlayerSlot {
 
 func (g *Game) CreatedAt() time.Time {
 	return g.createdAt
+}
+
+func (g *Game) StartedAt() *time.Time {
+	return g.startedAt
+}
+
+func (g *Game) EndedAt() *time.Time {
+	return g.endedAt
 }
 
 func (g *Game) AddPlayer(name string, assignedRole string) error {

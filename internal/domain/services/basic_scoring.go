@@ -47,8 +47,7 @@ func (s *BasicScoringRules) CalculatePointsForUser(predictions []*entities.Predi
 }
 
 // CalculatePointsForEachPrediction calculates points for each prediction separately
-// Useful for recording points in each prediction
-func (s *BasicScoringRules) CalculatePointsForEachPrediction(predictions []entities.Prediction, realRoles map[string]string) map[entities.PredictionID]int {
+func (s *BasicScoringRules) CalculatePointsForEachPrediction(predictions []*entities.Prediction, realRoles map[string]string) map[entities.PredictionID]int {
 	result := make(map[entities.PredictionID]int)
 
 	for _, prediction := range predictions {
@@ -74,18 +73,18 @@ func (s *BasicScoringRules) getPointsForRole(role string) int {
 		return s.pointsForDemon
 	case "minion":
 		return s.pointsForMinion
-	default: // townsfolk, outsider, and other "good" roles
+	default:
 		return s.pointsForGood
 	}
 }
 
 func (s *BasicScoringRules) getPenaltyForRole(role value_objects.Role) int {
-	switch role {
+	switch role.String() {
 	case "demon":
 		return s.penaltyForDemon
 	case "minion":
 		return s.penaltyForMinion
-	default: // townsfolk, outsider
+	default:
 		return s.penaltyForGood
 	}
 }

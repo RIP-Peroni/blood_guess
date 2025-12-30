@@ -33,3 +33,13 @@ type SubmitPredictionInput interface {
 type CalculateResultsInput interface {
 	Execute(command dto.FinishGameCommand) (map[string]int, error) //[userID]points
 }
+
+// StartGameInput port for starting a game
+type StartGameInput interface {
+	Execute(command dto.StartGameCommand) (*dto.GameResponse, error)
+}
+
+// FinishGameInput port for finishing a game
+type FinishGameInput interface {
+	Execute(command dto.FinishGameCommand) (*dto.FinishGameResponse, error)
+}
