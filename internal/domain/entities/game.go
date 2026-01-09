@@ -2,6 +2,7 @@ package entities
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -88,28 +89,113 @@ func (g *Game) EndedAt() *time.Time {
 	return g.endedAt
 }
 
-func (g *Game) AddPlayer(name string, assignedRole string) error {
+func (g *Game) AddPlayer(name string, assignedRole ...string) error {
 	if name == "" {
 		return ErrEmptyPlayerName
 	}
 
-	// Check the uniqueness of the name within the game
 	for _, player := range g.players {
 		if player.Name == name {
 			return errors.New("player with this name already exists in this game")
 		}
 	}
 
+	role := ""
+	if len(assignedRole) > 0 && assignedRole[0] != "" {
+		role = assignedRole[0]
+	}
+
 	player := PlayerSlot{
 		ID:            PlayerSlotID(uuid.New().String()),
 		Name:          name,
-		AssignedRole:  assignedRole,
+		AssignedRole:  role,
 		RealRole:      "",
 		IsRealRoleSet: false,
 	}
 
 	g.players = append(g.players, player)
 	return nil
+}
+
+// AddPlayers adds multiple players without specifying roles
+func (g *Game) AddPlayers(names []string) error {
+	for _, name := range names {
+		if err := g.AddPlayer(name); err != nil {
+			return fmt.Errorf("failed to add player %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// CopyPlayersFrom copies players from another game (without roles)
+func (g *Game) CopyPlayersFrom(sourceGame *Game) error {
+	if sourceGame == nil {
+		return errors.New("source game cannot be nil")
+	}
+
+	if len(sourceGame.Players()) == 0 {
+		return fmt.Errorf("source game has no players")
+	}
+
+	for _, player := range sourceGame.Players() {
+		if player.Name == "" {
+			continue
+		}
+
+		playerExists := false
+		for _, existingPlayer := range g.players {
+			if existingPlayer.Name == player.Name {
+				playerExists = true
+				break
+			}
+		}
+
+		if playerExists {
+			continue
+		}
+
+		// Copy only name, not role
+		if err := g.AddPlayer(player.Name); err != nil {
+			return fmt.Errorf("failed to copy player %s: %w", player.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// SetAssignedRole sets the assigned role to a player (can be used before the game starts)
+func (g *Game) SetAssignedRole(playerID PlayerSlotID, role string) error {
+	if role == "" {
+		return ErrEmptyRole
+	}
+
+	for i, player := range g.players {
+		if player.ID == playerID {
+			g.players[i].AssignedRole = role
+			return nil
+		}
+	}
+
+	return ErrPlayerNotFound
+}
+
+// GetPlayerNames returns a list of player names
+func (g *Game) GetPlayerNames() []string {
+	names := make([]string, len(g.players))
+	for i, player := range g.players {
+		names[i] = player.Name
+	}
+	return names
+}
+
+// HasPlayersWithRoles checks if players have roles assigned
+func (g *Game) HasPlayersWithRoles() bool {
+	for _, player := range g.players {
+		if player.AssignedRole != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *Game) OpenPredictions() error {

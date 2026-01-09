@@ -1,3 +1,4 @@
+// cmd/bot/main.go
 package main
 
 import (
@@ -26,6 +27,9 @@ func main() {
 	uow := persistence.NewUnitOfWork()
 
 	createGameUseCase := usecases.NewCreateGameUseCase(uow.GameRepo)
+	addPlayerUseCase := usecases.NewAddPlayerUseCase(uow.GameRepo)
+	addPlayersUseCase := usecases.NewAddPlayersUseCase(uow.GameRepo)
+	copyPlayersUseCase := usecases.NewCopyPlayersUseCase(uow.GameRepo)
 	openPredictionsUseCase := usecases.NewOpenPredictionsUseCase(uow.GameRepo)
 	closePredictionsUseCase := usecases.NewClosePredictionsUseCase(uow.GameRepo)
 	submitPredictionUseCase := usecases.NewSubmitPredictionUseCase(
@@ -33,7 +37,6 @@ func main() {
 		uow.UserRepo,
 		uow.PredictionRepo,
 	)
-	addPlayerUseCase := usecases.NewAddPlayerUseCase(uow.GameRepo)
 	startGameUseCase := usecases.NewStartGameUseCase(uow.GameRepo)
 	scoringService := services.NewBasicScoringRules()
 	finishGameUseCase := usecases.NewFinishGameUseCase(
@@ -46,20 +49,23 @@ func main() {
 	botAPI := bot.GetAPI()
 
 	availableCommands := map[string]string{
-		"start":     "Начать работу с ботом",
-		"help":      "Показать список команд",
-		"newgame":   "Создать новую игру",
-		"games":     "Показать активные игры",
-		"gameinfo":  "Показать информацию об игре",
-		"addplayer": "Добавить игрока в игру",
-		"openpred":  "Открыть прогнозы для игры",
-		"closepred": "Закрыть прогнозы для игры",
-		"predict":   "Сделать прогноз на игру",
-		"mypredict": "Показать мои прогнозы",
-		"profile":   "Показать мой профиль",
-		"startgame": "Начать реальную игру (после закрытия прогнозов)",
-		"setrole":   "Установить реальную роль игрока",
-		"finish":    "Завершить игру и подсчитать результаты",
+		"start":       "Начать работу с ботом",
+		"help":        "Показать список команд",
+		"newgame":     "Создать новую игру",
+		"games":       "Показать активные игры",
+		"gameinfo":    "Показать информацию об игре",
+		"addplayer":   "Добавить одного игрока в игру (с ролью)",
+		"addplayers":  "Добавить нескольких игроков (без ролей)",
+		"copyplayers": "Скопировать игроков из последней игры",
+		"assignroles": "Показать игроков без ролей",
+		"setrole":     "Назначить роль игроку",
+		"openpred":    "Открыть прогнозы для игры",
+		"closepred":   "Закрыть прогнозы для игры",
+		"predict":     "Сделать прогноз на игру",
+		"mypredict":   "Показать мои прогнозы",
+		"profile":     "Показать мой профиль",
+		"startgame":   "Начать реальную игру (после закрытия прогнозов)",
+		"finish":      "Завершить игру и подсчитать результаты",
 	}
 
 	bot.RegisterHandler(handlers.NewStartHandler(botAPI))
@@ -68,6 +74,9 @@ func main() {
 	bot.RegisterHandler(handlers.NewGamesHandler(botAPI, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewGameInfoHandler(botAPI, uow.GameRepo, uow.UserRepo, uow.PredictionRepo))
 	bot.RegisterHandler(handlers.NewAddPlayerHandler(botAPI, addPlayerUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewAddPlayersHandler(botAPI, addPlayersUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewCopyPlayersHandler(botAPI, copyPlayersUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewAssignRolesHandler(botAPI, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewPredictHandler(botAPI, submitPredictionUseCase, uow.GameRepo, uow.UserRepo))

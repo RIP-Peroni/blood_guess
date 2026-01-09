@@ -43,3 +43,13 @@ type StartGameInput interface {
 type FinishGameInput interface {
 	Execute(command dto.FinishGameCommand) (*dto.FinishGameResponse, error)
 }
+
+// AddPlayersInput - port for adding multiple players
+type AddPlayersInput interface {
+	Execute(command dto.AddPlayersCommand) (*dto.GameResponse, error)
+}
+
+// CopyPlayersInput - port for copying players from a previous game
+type CopyPlayersInput interface {
+	Execute(command dto.CopyPlayersCommand) (*dto.GameResponse, error)
+}

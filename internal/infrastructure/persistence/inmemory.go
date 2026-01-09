@@ -56,6 +56,10 @@ func (r *InMemoryGameRepository) FindActiveGames() ([]*entities.Game, error) {
 
 	var activeGames []*entities.Game
 	for _, game := range r.games {
+		if game == nil {
+			continue
+		}
+
 		if game.Status() != entities.GameStatusFinished {
 			activeGames = append(activeGames, game)
 		}

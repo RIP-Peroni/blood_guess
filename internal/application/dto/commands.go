@@ -15,6 +15,7 @@ var (
 	ErrInvalidRole        = errors.New("invalid role")
 	ErrEmptyAdminID       = errors.New("admin ID cannot be empty")
 	ErrEmptyPlayerName    = errors.New("player name cannot be empty")
+	ErrEmptyPlayerNames   = errors.New("player names cannot be empty")
 )
 
 // List of allowed roles for the game "Blood on the Clocktower"
@@ -209,6 +210,49 @@ type StartGameCommand struct {
 
 func (c *StartGameCommand) Validate() error {
 	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
+	}
+	return nil
+}
+
+// AddPlayersCommand - команда для добавления нескольких игроков
+type AddPlayersCommand struct {
+	GameID      string
+	PlayerNames []string
+	AdminID     int64
+}
+
+// Validate checks the command to add multiple players
+func (c *AddPlayersCommand) Validate() error {
+	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if len(c.PlayerNames) == 0 {
+		return ErrEmptyPlayerNames
+	}
+	for _, name := range c.PlayerNames {
+		if strings.TrimSpace(name) == "" {
+			return ErrEmptyPlayerName
+		}
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
+	}
+	return nil
+}
+
+// CopyPlayersCommand - command to copy players from a previous game
+type CopyPlayersCommand struct {
+	TargetGameID string
+	AdminID      int64
+}
+
+// Validate checks the player copy command
+func (c *CopyPlayersCommand) Validate() error {
+	if c.TargetGameID == "" {
 		return ErrEmptyGameID
 	}
 	if c.AdminID <= 0 {
