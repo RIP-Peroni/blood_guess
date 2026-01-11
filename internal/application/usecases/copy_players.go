@@ -4,6 +4,7 @@ import (
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
+	"errors"
 	"fmt"
 	"sort"
 )
@@ -83,8 +84,29 @@ func (uc *CopyPlayersUseCase) Execute(command dto.CopyPlayersCommand) (*dto.Game
 		return nil, fmt.Errorf("source game has no players")
 	}
 
-	if err := targetGame.CopyPlayersFrom(sourceGame); err != nil {
-		return nil, fmt.Errorf("failed to copy players: %w", err)
+	for _, player := range sourceGame.Players() {
+		if player.Name == "" {
+			continue
+		}
+
+		playerExists := false
+		for _, existingPlayer := range targetGame.Players() {
+			if existingPlayer.Name == player.Name {
+				playerExists = true
+				break
+			}
+		}
+
+		if playerExists {
+			continue
+		}
+
+		if err := targetGame.AddPlayer(player.Name); err != nil {
+			if errors.Is(err, entities.ErrPlayerAlreadyAdded) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to copy player %s: %w", player.Name, err)
+		}
 	}
 
 	if err := uc.gameRepo.Update(targetGame); err != nil {
@@ -99,10 +121,9 @@ func (uc *CopyPlayersUseCase) toResponse(game *entities.Game) *dto.GameResponse 
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{
-			ID:           string(player.ID),
-			Name:         player.Name,
-			AssignedRole: player.AssignedRole,
-			RealRole:     player.RealRole,
+			ID:       string(player.ID),
+			Name:     player.Name,
+			RealRole: player.RealRole,
 		})
 	}
 

@@ -17,10 +17,9 @@ type GameResponse struct {
 
 // PlayerResponse - player information
 type PlayerResponse struct {
-	ID           string
-	Name         string
-	AssignedRole string
-	RealRole     string
+	ID       string
+	Name     string
+	RealRole string
 }
 
 // PredictionResponse - answer about the prediction
@@ -61,11 +60,10 @@ type FinishGameResponse struct {
 }
 
 type PlayerResultResponse struct {
-	PlayerID     string
-	PlayerName   string
-	AssignedRole string
-	RealRole     string
-	Predictions  []PredictionResultResponse
+	PlayerID    string
+	PlayerName  string
+	RealRole    string
+	Predictions []PredictionResultResponse
 }
 
 type PredictionResultResponse struct {

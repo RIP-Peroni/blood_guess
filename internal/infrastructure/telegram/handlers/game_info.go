@@ -79,7 +79,6 @@ func (h *GameInfoHandler) Handle(update tgbotapi.Update) error {
 		for i, player := range game.Players() {
 			sb.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", i+1, h.EscapeHTML(player.Name)))
 			sb.WriteString(fmt.Sprintf("   🆔: <code>%s</code>\n", player.ID))
-			sb.WriteString(fmt.Sprintf("   🎭 Назначенная роль: %s\n", player.AssignedRole))
 
 			if player.IsRealRoleSet && (game.Status() == entities.GameStatusFinished) {
 				sb.WriteString(fmt.Sprintf("   ✅ Реальная роль: <b>%s</b>\n", player.RealRole))

@@ -163,7 +163,6 @@ func (h *FinishGameHandler) Handle(update tgbotapi.Update) error {
 
 		for _, player := range response.PlayerResults {
 			sb.WriteString(fmt.Sprintf("\n<b>👤 %s</b>\n", h.EscapeHTML(player.PlayerName)))
-			sb.WriteString(fmt.Sprintf("  Назначенная роль: %s\n", player.AssignedRole))
 			sb.WriteString(fmt.Sprintf("  Реальная роль: <b>%s</b>\n", player.RealRole))
 
 			if len(player.Predictions) > 0 {

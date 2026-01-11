@@ -47,8 +47,8 @@ func (uc *AddPlayerUseCase) Execute(command dto.AddPlayerCommand) (*dto.GameResp
 	}
 
 	// Добавляем игрока
-	if err := game.AddPlayer(command.PlayerName, command.AssignedRole); err != nil {
-		if err.Error() == "player with this name already exists in this game" {
+	if err := game.AddPlayer(command.PlayerName); err != nil {
+		if errors.Is(err, entities.ErrPlayerAlreadyAdded) {
 			return nil, ErrDuplicatePlayerName
 		}
 		return nil, fmt.Errorf("failed to add player: %w", err)
@@ -67,10 +67,9 @@ func (uc *AddPlayerUseCase) toResponse(game *entities.Game) *dto.GameResponse {
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{
-			ID:           string(player.ID),
-			Name:         player.Name,
-			AssignedRole: player.AssignedRole,
-			RealRole:     player.RealRole,
+			ID:       string(player.ID),
+			Name:     player.Name,
+			RealRole: player.RealRole,
 		})
 	}
 

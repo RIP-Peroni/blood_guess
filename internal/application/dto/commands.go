@@ -1,7 +1,9 @@
 package dto
 
 import (
+	"RIP-Peroni/blood_guess/internal/domain/value_objects"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -13,18 +15,26 @@ var (
 	ErrEmptyPlayerSlotID  = errors.New("player slot ID cannot be empty")
 	ErrEmptyPredictedRole = errors.New("predicted role cannot be empty")
 	ErrInvalidRole        = errors.New("invalid role")
-	ErrEmptyAdminID       = errors.New("admin ID cannot be empty")
 	ErrEmptyPlayerName    = errors.New("player name cannot be empty")
 	ErrEmptyPlayerNames   = errors.New("player names cannot be empty")
 )
 
 // List of allowed roles for the game "Blood on the Clocktower"
-var validRoles = map[string]bool{
-	"demon":     true,
-	"minion":    true,
-	"townsfolk": true,
-	"outsider":  true,
-}
+var (
+	allGameRoles = map[string]bool{
+		"demon":     true,
+		"minion":    true,
+		"townsfolk": true,
+		"outsider":  true,
+	}
+
+	validRoles = map[string]bool{
+		"demon":     true,
+		"minion":    true,
+		"townsfolk": true,
+		"outsider":  true,
+	}
+)
 
 // CreateGameCommand - command for creating a game
 type CreateGameCommand struct {
@@ -50,10 +60,9 @@ func (c *CreateGameCommand) TrimmedName() string {
 
 // AddPlayerCommand - команда для добавления игрока
 type AddPlayerCommand struct {
-	GameID       string
-	PlayerName   string
-	AssignedRole string
-	AdminID      int64
+	GameID     string
+	PlayerName string
+	AdminID    int64
 }
 
 // Validate checks the correctness of the player add command
@@ -63,12 +72,6 @@ func (c *AddPlayerCommand) Validate() error {
 	}
 	if strings.TrimSpace(c.PlayerName) == "" {
 		return ErrEmptyPlayerName
-	}
-	if c.AssignedRole == "" {
-		return ErrEmptyPredictedRole
-	}
-	if !IsValidRole(c.AssignedRole) {
-		return ErrInvalidRole
 	}
 	if c.AdminID <= 0 {
 		return ErrInvalidCreatorID
@@ -93,14 +96,6 @@ func (c *OpenPredictionsCommand) Validate() error {
 	return nil
 }
 
-// SubmitPredictionCommand - command to send a prediction
-type SubmitPredictionCommand struct {
-	GameID        string
-	UserID        string
-	PlayerSlotID  string
-	PredictedRole string
-}
-
 // Validate checks the correctness of the prediction sending command
 func (c *SubmitPredictionCommand) Validate() error {
 	if c.GameID == "" {
@@ -117,6 +112,9 @@ func (c *SubmitPredictionCommand) Validate() error {
 	}
 	if !c.IsValidRole() {
 		return ErrInvalidRole
+	}
+	if !IsPredictableRole(c.PredictedRole) {
+		return fmt.Errorf("%w: only demon and minion roles can be predicted", ErrInvalidRole)
 	}
 	return nil
 }
@@ -161,46 +159,9 @@ func (c *FinishGameCommand) Validate() error {
 	return nil
 }
 
-// SetPlayerRoleCommand - command to set the player's real role
-type SetPlayerRoleCommand struct {
-	GameID       string
-	PlayerSlotID string
-	RealRole     string
-	AdminID      int64
-}
-
-// Validate checks the correctness of the role setting command
-func (c *SetPlayerRoleCommand) Validate() error {
-	if c.GameID == "" {
-		return ErrEmptyGameID
-	}
-	if c.PlayerSlotID == "" {
-		return ErrEmptyPlayerSlotID
-	}
-	if c.RealRole == "" {
-		return ErrEmptyPredictedRole
-	}
-	if !IsValidRole(c.RealRole) {
-		return ErrInvalidRole
-	}
-	if c.AdminID <= 0 {
-		return ErrInvalidCreatorID
-	}
-	return nil
-}
-
 // IsValidRole checks if a role is valid
 func IsValidRole(role string) bool {
 	return validRoles[role]
-}
-
-// GetValidRoles returns a list of valid roles
-func GetValidRoles() []string {
-	roles := make([]string, 0, len(validRoles))
-	for role := range validRoles {
-		roles = append(roles, role)
-	}
-	return roles
 }
 
 type StartGameCommand struct {
@@ -259,4 +220,63 @@ func (c *CopyPlayersCommand) Validate() error {
 		return ErrInvalidCreatorID
 	}
 	return nil
+}
+
+// IsValidGameRole checks if a role is valid for the game
+func IsValidGameRole(role string) bool {
+	return allGameRoles[role]
+}
+
+// GetValidGameRoles returns all valid game roles
+func GetValidGameRoles() []string {
+	roles := make([]string, 0, len(allGameRoles))
+	for role := range allGameRoles {
+		roles = append(roles, role)
+	}
+	return roles
+}
+
+// SubmitPredictionCommand - command to send a prediction
+type SubmitPredictionCommand struct {
+	GameID        string
+	UserID        string
+	PlayerSlotID  string
+	PredictedRole string
+}
+
+// SetRealRoleCommand - command to set the player's real role after the game
+type SetRealRoleCommand struct {
+	GameID       string
+	PlayerSlotID string
+	RealRole     string
+	AdminID      int64
+}
+
+// Validate checks the real role setting command
+func (c *SetRealRoleCommand) Validate() error {
+	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if c.PlayerSlotID == "" {
+		return ErrEmptyPlayerSlotID
+	}
+	if c.RealRole == "" {
+		return ErrEmptyPredictedRole
+	}
+	if !IsValidGameRole(c.RealRole) {
+		return fmt.Errorf("%w: valid roles are demon, minion, townsfolk, outsider", ErrInvalidRole)
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
+	}
+	return nil
+}
+
+// IsPredictableRole checks whether this role can be predicted
+func IsPredictableRole(role string) bool {
+	r, err := value_objects.FromString(role)
+	if err != nil {
+		return false
+	}
+	return value_objects.IsPredictable(r)
 }

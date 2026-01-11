@@ -78,7 +78,7 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 
 		game := entities.NewGame("Test Game", adminID)
 
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		assert.NoError(t, err)
 
 		err = repo.Save(game)
@@ -99,10 +99,9 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 			CreatorID: adminID,
 			Players: []dto.PlayerResponse{
 				{
-					ID:           string(game.Players()[0].ID),
-					Name:         "Player 1",
-					AssignedRole: "townsfolk",
-					RealRole:     "",
+					ID:       string(game.Players()[0].ID),
+					Name:     "Player 1",
+					RealRole: "",
 				},
 			},
 			CreatedAt: time.Now(),

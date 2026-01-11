@@ -35,29 +35,24 @@ func (h *AddPlayerHandler) Handle(update tgbotapi.Update) error {
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	if args == "" {
-		message := `<b>Использование:</b> <code>/addplayer &lt;ID_игры&gt; &lt;имя_игрока&gt; &lt;роль&gt;</code>
+		message := `<b>Использование:</b> <code>/addplayer &lt;ID_игры&gt; &lt;имя_игрока&gt;</code>
 
-<b>Пример:</b> <code>/addplayer abc123 Иван townsfolk</code>
+<b>Пример:</b> <code>/addplayer abc123 Иван</code>
 
-<b>Доступные роли:</b>
-• <code>townsfolk</code> - горожанин
-• <code>outsider</code> - изгой
-• <code>minion</code> - приспешник
-• <code>demon</code> - демон
-
-<b>Примечание:</b> Имя игрока должно быть уникальным в рамках игры.`
+<b>Примечание:</b>
+• Имя игрока должно быть уникальным в рамках игры
+• Можно использовать имена с пробелами, заключив их в кавычки: <code>/addplayer abc123 "Иван Петров"</code>`
 		return h.SendHTML(update.Message.Chat.ID, message)
 	}
 
-	parts := strings.Fields(args)
-	if len(parts) < 3 {
+	parts := parseArguments(args)
+	if len(parts) < 2 {
 		return h.SendHTML(update.Message.Chat.ID,
-			"❌ Недостаточно аргументов. Используйте: <code>/addplayer &lt;ID_игры&gt; &lt;имя_игрока&gt; &lt;роль&gt;</code>")
+			"❌ Недостаточно аргументов. Используйте: <code>/addplayer &lt;ID_игры&gt; &lt;имя_игрока&gt;</code>")
 	}
 
 	gameID := parts[0]
-	playerName := parts[1]
-	role := parts[2]
+	playerName := strings.Join(parts[1:], " ") // Объединяем оставшиеся части как имя игрока
 
 	game, err := h.gameRepo.FindByID(entities.GameID(gameID))
 	if err != nil {
@@ -71,25 +66,10 @@ func (h *AddPlayerHandler) Handle(update tgbotapi.Update) error {
 			"❌ Только создатель игры может добавлять игроков.")
 	}
 
-	// Проверяем валидность роли
-	validRoles := []string{"townsfolk", "outsider", "minion", "demon"}
-	isValidRole := false
-	for _, validRole := range validRoles {
-		if role == validRole {
-			isValidRole = true
-			break
-		}
-	}
-	if !isValidRole {
-		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Недопустимая роль: <code>%s</code>. Допустимые роли: townsfolk, outsider, minion, demon.", h.EscapeHTML(role)))
-	}
-
 	command := dto.AddPlayerCommand{
-		GameID:       gameID,
-		PlayerName:   playerName,
-		AssignedRole: role,
-		AdminID:      update.Message.From.ID,
+		GameID:     gameID,
+		PlayerName: playerName,
+		AdminID:    update.Message.From.ID,
 	}
 
 	response, err := h.addPlayerInput.Execute(command)
@@ -102,14 +82,15 @@ func (h *AddPlayerHandler) Handle(update tgbotapi.Update) error {
 
 <b>🎮 Игра:</b> %s
 <b>👤 Игрок:</b> %s
-<b>🎭 Роль:</b> %s
 <b>👥 Всего игроков в игре:</b> %d
 
-Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred %s</code>`,
+Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred %s</code>
+
+<b>Примечание:</b> Роль игроку не назначена. Реальную роль можно установить после игры командой <code>/setrealrole %s &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>`,
 		h.EscapeHTML(response.Name),
 		h.EscapeHTML(playerName),
-		h.EscapeHTML(role),
 		len(response.Players),
+		h.EscapeHTML(gameID),
 		h.EscapeHTML(gameID))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)

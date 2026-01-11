@@ -38,3 +38,13 @@ func FromString(roleStr string) (Role, error) {
 	}
 	return role, nil
 }
+
+// IsEvil checks if a role is evil (demon or minion)
+func (r Role) IsEvil() bool {
+	return r == RoleDemon || r == RoleMinion
+}
+
+// IsPeaceful checks if a role is peaceful (townsfolk or outsider)
+func (r Role) IsPeaceful() bool {
+	return r == RoleTownsfolk || r == RoleOutsider
+}

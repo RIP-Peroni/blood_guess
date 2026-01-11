@@ -32,9 +32,9 @@ func TestFinishGameUseCase(t *testing.T) {
 
 		// Create a game
 		game := entities.NewGame("Test Game", creatorID)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
-		err = game.AddPlayer("Player 2", "outsider")
+		err = game.AddPlayer("Player 2")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -67,7 +67,7 @@ func TestFinishGameUseCase(t *testing.T) {
 		require.NoError(t, err)
 
 		// Generating predictions
-		// User 1: correctly guessed the demon, incorrectly guessed the townsperson
+		// User 1: correctly guessed the demon, incorrectly guessed the townsperson as minion
 		pred1, err := entities.NewPrediction(
 			game.ID(),
 			user1.ID(),
@@ -82,18 +82,18 @@ func TestFinishGameUseCase(t *testing.T) {
 			game.ID(),
 			user1.ID(),
 			player2ID,
-			"minion", // Made a mistake, I thought he was a henchman, but it turned out to be a city dweller.
+			"minion", // Made a mistake, thought he was a minion, but it turned out to be a townsfolk
 		)
 		require.NoError(t, err)
 		err = predictionRepo.Save(pred2)
 		require.NoError(t, err)
 
-		// User 2: Guessed everything wrong
+		// User 2: Guessed everything wrong (только злые роли!)
 		pred3, err := entities.NewPrediction(
 			game.ID(),
 			user2.ID(),
 			player1ID,
-			"townsfolk", // mistake - thought townsfolk, but turned out to be a demon.
+			"minion", // mistake - thought minion, but turned out to be a demon
 		)
 		require.NoError(t, err)
 		err = predictionRepo.Save(pred3)
@@ -103,7 +103,7 @@ func TestFinishGameUseCase(t *testing.T) {
 			game.ID(),
 			user2.ID(),
 			player2ID,
-			"demon", // mistake - thought demon, but turned out to be a townsfolk.
+			"demon", // mistake - thought demon, but turned out to be a townsfolk
 		)
 		require.NoError(t, err)
 		err = predictionRepo.Save(pred4)
@@ -125,7 +125,7 @@ func TestFinishGameUseCase(t *testing.T) {
 
 		// Checking the points awarded
 		assert.Equal(t, 8, response.UserScores[string(user1.ID())])  // +10 per demon, -2 per minion = 8
-		assert.Equal(t, -4, response.UserScores[string(user2.ID())]) // -3 for demon, -2 for citizen = -4
+		assert.Equal(t, -5, response.UserScores[string(user2.ID())]) // -2 for wrong minion, -3 for wrong demon = -5
 
 		updatedUser1, err := userRepo.FindById(user1.ID())
 		require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestFinishGameUseCase(t *testing.T) {
 
 		updatedUser2, err := userRepo.FindById(user2.ID())
 		require.NoError(t, err)
-		assert.Equal(t, 0, updatedUser2.Balance()) // -4, but the balance cannot be negative, so 0
+		assert.Equal(t, 0, updatedUser2.Balance()) // -5, but the balance cannot be negative, so 0
 
 		// Check that the predictions received points
 		updatedPred1, err := predictionRepo.FindByID(pred1.ID())
@@ -151,7 +151,7 @@ func TestFinishGameUseCase(t *testing.T) {
 
 	t.Run("error: not all real roles set", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -180,7 +180,7 @@ func TestFinishGameUseCase(t *testing.T) {
 
 	t.Run("error: not game creator", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -210,7 +210,7 @@ func TestFinishGameUseCase(t *testing.T) {
 
 	t.Run("error: game not in progress", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()

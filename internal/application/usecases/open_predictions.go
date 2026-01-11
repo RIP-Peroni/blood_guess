@@ -58,10 +58,9 @@ func (uc *OpenPredictionsUseCase) toResponse(game *entities.Game) *dto.GameRespo
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{
-			ID:           string(player.ID),
-			Name:         player.Name,
-			AssignedRole: player.AssignedRole,
-			RealRole:     player.RealRole,
+			ID:       string(player.ID),
+			Name:     player.Name,
+			RealRole: player.RealRole,
 		})
 	}
 

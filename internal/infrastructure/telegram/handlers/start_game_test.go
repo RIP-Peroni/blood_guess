@@ -37,7 +37,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 		// Create test game
 		adminID := int64(12345)
 		game := entities.NewGame("Test Game", adminID)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -64,10 +64,9 @@ func TestStartGameHandler_Handle(t *testing.T) {
 			CreatorID: adminID,
 			Players: []dto.PlayerResponse{
 				{
-					ID:           string(game.Players()[0].ID),
-					Name:         "Player 1",
-					AssignedRole: "townsfolk",
-					RealRole:     "",
+					ID:       string(game.Players()[0].ID),
+					Name:     "Player 1",
+					RealRole: "",
 				},
 			},
 			CreatedAt: time.Now(),

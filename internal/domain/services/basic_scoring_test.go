@@ -1,7 +1,7 @@
-// internal/domain/services/basic_scoring_test.go
 package services_test
 
 import (
+	"RIP-Peroni/blood_guess/internal/domain/constants"
 	"testing"
 
 	"RIP-Peroni/blood_guess/internal/domain/entities"
@@ -13,48 +13,64 @@ import (
 func TestBasicScoringRules_CalculatePointsForUser(t *testing.T) {
 	scoringService := services.NewBasicScoringRules()
 
-	t.Run("demon scoring", func(t *testing.T) {
+	t.Run("correctly guessed demon and minion", func(t *testing.T) {
 		p1, _ := entities.NewPrediction("game-123", "user-1", "slot1", "demon")
 		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
-		p3, _ := entities.NewPrediction("game-123", "user-1", "slot3", "townsfolk")
-		predictions := []*entities.Prediction{
-			p1,
-			p2,
-			p3,
-		}
+		predictions := []*entities.Prediction{p1, p2}
 
 		realRoles := map[string]string{
-			"slot1": "demon",     // guessed the demon
-			"slot2": "townsfolk", // didn't guess the minion
-			"slot3": "townsfolk", // guessed peaceful
+			"slot1": "demon",  // Угадал демона: +10
+			"slot2": "minion", // Угадал приспешника: +5
 		}
 
 		totalScore := scoringService.CalculatePointsForUser(predictions, realRoles)
-
-		// Expected: +10 for a demon, -2 for a minion's incorrect prediction, +2 for a peaceful one = 10
-		assert.Equal(t, 10, totalScore)
+		expected := constants.PointsForDemon + constants.PointsForMinion
+		assert.Equal(t, expected, totalScore)
 	})
 
-	t.Run("all roles are guessed", func(t *testing.T) {
-		p1, _ := entities.NewPrediction(entities.GameID("game-123"), entities.UserID("user-1"), entities.PlayerSlotID("slot1"), "demon")
-		p2, _ := entities.NewPrediction(entities.GameID("game-123"), entities.UserID("user-1"), entities.PlayerSlotID("slot2"), "minion")
-		p3, _ := entities.NewPrediction(entities.GameID("game-123"), entities.UserID("user-1"), entities.PlayerSlotID("slot3"), "townsfolk")
-		predictions := []*entities.Prediction{
-			p1,
-			p2,
-			p3,
-		}
+	t.Run("incorrect predictions for evil roles", func(t *testing.T) {
+		p1, _ := entities.NewPrediction("game-123", "user-1", "slot1", "demon")
+		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
+		predictions := []*entities.Prediction{p1, p2}
 
 		realRoles := map[string]string{
-			"slot1": "demon",
-			"slot2": "minion",
-			"slot3": "townsfolk",
+			"slot1": "minion", // Предсказал demon, реальность minion: -3
+			"slot2": "demon",  // Предсказал minion, реальность demon: -2
 		}
 
 		totalScore := scoringService.CalculatePointsForUser(predictions, realRoles)
+		expected := -(constants.PenaltyForDemon + constants.PenaltyForMinion)
+		assert.Equal(t, expected, totalScore)
+	})
 
-		// +10 for demon, +5 for minion, +2 for townsfolk = 17
-		assert.Equal(t, 17, totalScore)
+	t.Run("incorrect predictions when real role is peaceful", func(t *testing.T) {
+		p1, _ := entities.NewPrediction("game-123", "user-1", "slot1", "demon")
+		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
+		predictions := []*entities.Prediction{p1, p2}
+
+		realRoles := map[string]string{
+			"slot1": "townsfolk", // Предсказал demon, реальность townsfolk: -3
+			"slot2": "outsider",  // Предсказал minion, реальность outsider: -2
+		}
+
+		totalScore := scoringService.CalculatePointsForUser(predictions, realRoles)
+		assert.Equal(t, -5, totalScore) // -3 - 2 = -5
+	})
+
+	t.Run("mixed correct and incorrect predictions", func(t *testing.T) {
+		p1, _ := entities.NewPrediction("game-123", "user-1", "slot1", "demon")
+		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
+		p3, _ := entities.NewPrediction("game-123", "user-1", "slot3", "demon")
+		predictions := []*entities.Prediction{p1, p2, p3}
+
+		realRoles := map[string]string{
+			"slot1": "demon",     // Угадал демона: +10
+			"slot2": "townsfolk", // Предсказал minion, реальность townsfolk: -2
+			"slot3": "minion",    // Предсказал demon, реальность minion: -3
+		}
+
+		totalScore := scoringService.CalculatePointsForUser(predictions, realRoles)
+		assert.Equal(t, 5, totalScore) // 10 - 2 - 3 = 5
 	})
 }
 
@@ -64,20 +80,17 @@ func TestBasicScoringRules_CalculatePointsForEachPrediction(t *testing.T) {
 	t.Run("score calculation for each prediction", func(t *testing.T) {
 		p1, _ := entities.NewPrediction("game-123", "user-1", "slot1", "demon")
 		p2, _ := entities.NewPrediction("game-123", "user-1", "slot2", "minion")
-		p3, _ := entities.NewPrediction("game-123", "user-1", "slot3", "townsfolk")
 
-		predictions := []*entities.Prediction{p1, p2, p3}
+		predictions := []*entities.Prediction{p1, p2}
 
 		realRoles := map[string]string{
-			"slot1": "demon",
-			"slot2": "townsfolk",
-			"slot3": "townsfolk",
+			"slot1": "demon",     // Угадал демона: +10
+			"slot2": "townsfolk", // Предсказал minion, реальность townsfolk: -2
 		}
 
 		pointsPerPrediction := scoringService.CalculatePointsForEachPrediction(predictions, realRoles)
 
 		assert.Equal(t, 10, pointsPerPrediction[p1.ID()])
 		assert.Equal(t, -2, pointsPerPrediction[p2.ID()])
-		assert.Equal(t, 2, pointsPerPrediction[p3.ID()])
 	})
 }

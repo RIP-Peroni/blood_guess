@@ -25,6 +25,10 @@ func NewPrediction(gameID GameID, userID UserID, playerSlotID PlayerSlotID, pred
 		return nil, err
 	}
 
+	if !value_objects.IsPredictable(role) {
+		return nil, errors.New("only evil roles (demon, minion) can be predicted")
+	}
+
 	return &Prediction{
 		id:            PredictionID(uuid.New().String()),
 		gameID:        gameID,

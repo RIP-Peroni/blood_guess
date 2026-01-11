@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"RIP-Peroni/blood_guess/internal/domain/constants"
 	"fmt"
 	"time"
 
@@ -8,7 +9,6 @@ import (
 	"RIP-Peroni/blood_guess/internal/application/ports"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 	"RIP-Peroni/blood_guess/internal/domain/services"
-	"RIP-Peroni/blood_guess/internal/domain/value_objects"
 )
 
 // FinishGameUseCase implements the "finish game" use case
@@ -115,9 +115,9 @@ func (uc *FinishGameUseCase) Execute(command dto.FinishGameCommand) (*dto.Finish
 			realRole := realRoles[string(pred.PlayerSlotID())]
 			var points int
 			if pred.IsCorrect(realRole) {
-				points = uc.getPointsForRole(realRole)
+				points = constants.PointsForRole(realRole)
 			} else {
-				points = -uc.getPenaltyForRole(pred.PredictedRole())
+				points = -constants.PenaltyForRole(pred.PredictedRole().String())
 			}
 
 			// Award points to prediction (can be negative)
@@ -167,29 +167,6 @@ func (uc *FinishGameUseCase) groupPredictionsByUser(predictions []*entities.Pred
 	return result
 }
 
-// Helper methods to get points/penalty
-func (uc *FinishGameUseCase) getPointsForRole(role string) int {
-	switch role {
-	case "demon":
-		return 10
-	case "minion":
-		return 5
-	default:
-		return 2
-	}
-}
-
-func (uc *FinishGameUseCase) getPenaltyForRole(role value_objects.Role) int {
-	switch role.String() {
-	case "demon":
-		return 3
-	case "minion":
-		return 2
-	default:
-		return 1
-	}
-}
-
 // toResponse converts domain entities to response DTO
 func (uc *FinishGameUseCase) toResponse(
 	game *entities.Game,
@@ -234,11 +211,10 @@ func (uc *FinishGameUseCase) toResponse(
 		}
 
 		playerResults = append(playerResults, dto.PlayerResultResponse{
-			PlayerID:     string(player.ID),
-			PlayerName:   player.Name,
-			AssignedRole: player.AssignedRole,
-			RealRole:     player.RealRole,
-			Predictions:  playerPredictions,
+			PlayerID:    string(player.ID),
+			PlayerName:  player.Name,
+			RealRole:    player.RealRole,
+			Predictions: playerPredictions,
 		})
 	}
 

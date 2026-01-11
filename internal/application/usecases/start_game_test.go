@@ -18,7 +18,7 @@ func TestStartGameUseCase(t *testing.T) {
 	t.Run("successful game start", func(t *testing.T) {
 		// Arrange
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -52,7 +52,7 @@ func TestStartGameUseCase(t *testing.T) {
 
 	t.Run("error: not game creator", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -76,7 +76,7 @@ func TestStartGameUseCase(t *testing.T) {
 
 	t.Run("error: predictions not closed", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -98,7 +98,7 @@ func TestStartGameUseCase(t *testing.T) {
 
 	t.Run("error: game already in progress", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()

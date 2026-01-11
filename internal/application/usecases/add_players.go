@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -39,17 +40,20 @@ func (uc *AddPlayersUseCase) Execute(command dto.AddPlayersCommand) (*dto.GameRe
 		return nil, fmt.Errorf("%w: current status is %s", ErrInvalidGameState, game.Status())
 	}
 
-	// Add players
 	trimmedNames := make([]string, len(command.PlayerNames))
 	for i, name := range command.PlayerNames {
 		trimmedNames[i] = strings.TrimSpace(name)
 	}
 
-	if err := game.AddPlayers(trimmedNames); err != nil {
-		return nil, fmt.Errorf("failed to add players: %w", err)
+	for _, name := range trimmedNames {
+		if err := game.AddPlayer(name); err != nil {
+			if errors.Is(err, entities.ErrPlayerAlreadyAdded) {
+				return nil, fmt.Errorf("player '%s' already exists in this game", name)
+			}
+			return nil, fmt.Errorf("failed to add player %s: %w", name, err)
+		}
 	}
 
-	// Save the updated game
 	if err := uc.gameRepo.Update(game); err != nil {
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
@@ -62,10 +66,9 @@ func (uc *AddPlayersUseCase) toResponse(game *entities.Game) *dto.GameResponse {
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{
-			ID:           string(player.ID),
-			Name:         player.Name,
-			AssignedRole: player.AssignedRole,
-			RealRole:     player.RealRole,
+			ID:       string(player.ID),
+			Name:     player.Name,
+			RealRole: player.RealRole,
 		})
 	}
 

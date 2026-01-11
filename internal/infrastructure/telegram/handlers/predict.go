@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"RIP-Peroni/blood_guess/internal/domain/constants"
+	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/formatting"
 	"fmt"
 	"strings"
 
@@ -42,7 +44,7 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	if args == "" {
-		message := `<b>Использование:</b> <code>/predict &lt;ID_игры&gt; &lt;ID_игрока&gt; &lt;роль&gt;</code>
+		message := fmt.Sprintf(`<b>Использование:</b> <code>/predict &lt;ID_игры&gt; &lt;ID_игрока&gt; &lt;роль&gt;</code>
 
 <b>Пример:</b> <code>/predict abc123 def456 demon</code>
 
@@ -50,13 +52,24 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 Используйте команду <code>/games</code> для просмотра списка игр.
 Затем используйте <code>/gameinfo &lt;ID_игры&gt;</code> для просмотра ID игроков.
 
-<b>Доступные роли:</b>
-• <code>townsfolk</code> - горожанин
-• <code>outsider</code> - изгой
-• <code>minion</code> - приспешник
-• <code>demon</code> - демон
+<b>Доступные роли для прогноза:</b>
+• <code>demon</code> - демон (злая роль)
+• <code>minion</code> - приспешник (злая роль)
 
-<b>Примечание:</b> Вы можете сделать только один прогноз на каждого игрока.`
+<b>❗ Внимание:</b> Прогнозировать можно только злые роли! Горожане и изгои не прогнозируются.
+
+<b>Система начисления очков:</b>
+✅ Угадал демона: %d очков
+✅ Угадал приспешника: %d очков
+❌ Ошибся с демоном: %d очка
+❌ Ошибся с приспешником: %d очка
+🙅 Прогнозы на мирные роли не учитываются
+
+Вы можете сделать только один прогноз на каждого игрока.`,
+			constants.PointsForDemon,
+			constants.PointsForMinion,
+			constants.PenaltyForDemon,
+			constants.PenaltyForMinion)
 		return h.SendHTML(update.Message.Chat.ID, message)
 	}
 
@@ -97,17 +110,19 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 			fmt.Sprintf("❌ Игрок с ID <code>%s</code> не найден в этой игре.", h.EscapeHTML(playerSlotID)))
 	}
 
-	validRoles := []string{"townsfolk", "outsider", "minion", "demon"}
-	isValidRole := false
-	for _, validRole := range validRoles {
-		if role == validRole {
-			isValidRole = true
-			break
-		}
-	}
-	if !isValidRole {
+	if !dto.IsPredictableRole(role) {
 		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Недопустимая роль: <code>%s</code>. Допустимые роли: townsfolk, outsider, minion, demon.", h.EscapeHTML(role)))
+			fmt.Sprintf(`❌ Недопустимая роль для прогноза: <code>%s</code> %s
+
+<b>Можно прогнозировать только злые роли:</b>
+• <code>demon</code> - демон %s
+• <code>minion</code> - приспешник %s
+
+Горожане (townsfolk) и изгои (outsider) <b>не прогнозируются</b>.`,
+				h.EscapeHTML(role),
+				formatting.RoleEmoji(role),
+				formatting.RoleEmoji("demon"),
+				formatting.RoleEmoji("minion")))
 	}
 
 	telegramID := update.Message.From.ID
@@ -137,20 +152,37 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 		return h.SendText(update.Message.Chat.ID, errorMsg)
 	}
 
-	successMsg := fmt.Sprintf(`✅ <b>Прогноз сохранен!</b>
+	roleEmoji := formatting.RoleEmoji(role)
+
+	successMsg := fmt.Sprintf(`%s <b>Прогноз на злую роль сохранен!</b>
 
 <b>🎮 Игра:</b> %s
 <b>👤 Игрок:</b> %s
-<b>🎭 Ваш прогноз:</b> %s
+<b>🎭 Ваш прогноз:</b> %s %s (%s)
+
+<b>📊 Система очков:</b>
+• Если %s окажется демоном: <b>+%d очков</b> %s
+• Если %s окажется приспешником: <b>+%d очков</b> %s
+• Если ошибётесь: <b>штраф %d очков</b>
 
 <b>📝 Ваши прогнозы в этой игре:</b>
 ID прогноза: <code>%s</code>
 Создан: %s
 
-Теперь можно сделать прогнозы для других игроков или дождаться начала игры!`,
+Теперь можно сделать прогнозы для других игроков!`,
+		roleEmoji,
 		h.EscapeHTML(game.Name()),
 		h.EscapeHTML(playerName),
+		roleEmoji,
 		h.EscapeHTML(role),
+		formatting.RoleDisplayName(role),
+		h.EscapeHTML(playerName),
+		constants.PointsForDemon,
+		formatting.RoleEmoji("demon"),
+		h.EscapeHTML(playerName),
+		constants.PointsForMinion,
+		formatting.RoleEmoji("minion"),
+		constants.PenaltyForRole(role),
 		h.EscapeHTML(response.ID),
 		response.CreatedAt.Format("02.01.2006 15:04"))
 

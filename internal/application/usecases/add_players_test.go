@@ -33,7 +33,6 @@ func TestAddPlayersUseCase(t *testing.T) {
 		assert.Equal(t, "Вася", response.Players[0].Name)
 		assert.Equal(t, "Петя", response.Players[1].Name)
 		assert.Equal(t, "Коля", response.Players[2].Name)
-		assert.Equal(t, "", response.Players[0].AssignedRole) // Роли не указаны
 	})
 
 	t.Run("error adding duplicate players", func(t *testing.T) {
@@ -49,7 +48,7 @@ func TestAddPlayersUseCase(t *testing.T) {
 
 		_, err = useCase.Execute(command)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to add players")
+		assert.Contains(t, err.Error(), "already exists in this game")
 	})
 
 	t.Run("error when not creator", func(t *testing.T) {

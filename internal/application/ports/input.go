@@ -53,3 +53,7 @@ type AddPlayersInput interface {
 type CopyPlayersInput interface {
 	Execute(command dto.CopyPlayersCommand) (*dto.GameResponse, error)
 }
+
+type SetRealRoleInput interface {
+	Execute(command dto.SetRealRoleCommand) error
+}

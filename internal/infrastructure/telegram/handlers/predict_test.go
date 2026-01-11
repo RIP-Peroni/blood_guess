@@ -35,7 +35,7 @@ func TestPredictHandler_Handle(t *testing.T) {
 
 	t.Run("successful prediction submission", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Alice", "townsfolk")
+		err := game.AddPlayer("Alice")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()

@@ -22,10 +22,9 @@ func TestAddPlayerUseCase(t *testing.T) {
 		require.NoError(t, err)
 
 		command := dto.AddPlayerCommand{
-			GameID:       string(game.ID()),
-			PlayerName:   "Alice",
-			AssignedRole: "townsfolk",
-			AdminID:      12345,
+			GameID:     string(game.ID()),
+			PlayerName: "Alice",
+			AdminID:    12345,
 		}
 
 		response, err := useCase.Execute(command)
@@ -33,7 +32,6 @@ func TestAddPlayerUseCase(t *testing.T) {
 
 		assert.Equal(t, 1, len(response.Players))
 		assert.Equal(t, "Alice", response.Players[0].Name)
-		assert.Equal(t, "townsfolk", response.Players[0].AssignedRole)
 	})
 
 	t.Run("error adding player with duplicate name", func(t *testing.T) {
@@ -43,20 +41,18 @@ func TestAddPlayerUseCase(t *testing.T) {
 
 		// Adding the first player
 		command1 := dto.AddPlayerCommand{
-			GameID:       string(game.ID()),
-			PlayerName:   "Bob",
-			AssignedRole: "townsfolk",
-			AdminID:      12345,
+			GameID:     string(game.ID()),
+			PlayerName: "Bob",
+			AdminID:    12345,
 		}
 		_, err = useCase.Execute(command1)
 		require.NoError(t, err)
 
 		// Trying to add a player with the same name
 		command2 := dto.AddPlayerCommand{
-			GameID:       string(game.ID()),
-			PlayerName:   "Bob",
-			AssignedRole: "outsider",
-			AdminID:      12345,
+			GameID:     string(game.ID()),
+			PlayerName: "Bob",
+			AdminID:    12345,
 		}
 		_, err = useCase.Execute(command2)
 		assert.Error(t, err)
@@ -65,10 +61,9 @@ func TestAddPlayerUseCase(t *testing.T) {
 
 	t.Run("error adding player to non-existent game", func(t *testing.T) {
 		command := dto.AddPlayerCommand{
-			GameID:       "non-existent",
-			PlayerName:   "Charlie",
-			AssignedRole: "townsfolk",
-			AdminID:      12345,
+			GameID:     "non-existent",
+			PlayerName: "Charlie",
+			AdminID:    12345,
 		}
 
 		_, err := useCase.Execute(command)
@@ -81,10 +76,9 @@ func TestAddPlayerUseCase(t *testing.T) {
 		require.NoError(t, err)
 
 		command := dto.AddPlayerCommand{
-			GameID:       string(game.ID()),
-			PlayerName:   "David",
-			AssignedRole: "townsfolk",
-			AdminID:      99999, // Not a creator
+			GameID:     string(game.ID()),
+			PlayerName: "David",
+			AdminID:    99999, // Not a creator
 		}
 
 		_, err = useCase.Execute(command)
@@ -94,7 +88,7 @@ func TestAddPlayerUseCase(t *testing.T) {
 	t.Run("error adding player to game not in created state", func(t *testing.T) {
 		game := entities.NewGame("Test Game 4", 12345)
 		// First, add a player so that you can open the predictions
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		// Now let's open the forecasts - it should work
@@ -105,14 +99,57 @@ func TestAddPlayerUseCase(t *testing.T) {
 		require.NoError(t, err)
 
 		command := dto.AddPlayerCommand{
-			GameID:       string(game.ID()),
-			PlayerName:   "Eve",
-			AssignedRole: "townsfolk",
-			AdminID:      12345,
+			GameID:     string(game.ID()),
+			PlayerName: "Eve",
+			AdminID:    12345,
 		}
 
 		_, err = useCase.Execute(command)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not in 'created' state")
+	})
+	t.Run("successfully add player to game without role", func(t *testing.T) {
+		// Create a game
+		game := entities.NewGame("Test Game", 12345)
+		err := gameRepo.Save(game)
+		require.NoError(t, err)
+
+		command := dto.AddPlayerCommand{
+			GameID:     string(game.ID()),
+			PlayerName: "Alice",
+			AdminID:    12345,
+		}
+
+		response, err := useCase.Execute(command)
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, len(response.Players))
+		assert.Equal(t, "Alice", response.Players[0].Name)
+		assert.Equal(t, "", response.Players[0].RealRole)
+	})
+
+	t.Run("error adding player with duplicate name", func(t *testing.T) {
+		game := entities.NewGame("Test Game 2", 12345)
+		err := gameRepo.Save(game)
+		require.NoError(t, err)
+
+		// Adding the first player
+		command1 := dto.AddPlayerCommand{
+			GameID:     string(game.ID()),
+			PlayerName: "Bob",
+			AdminID:    12345,
+		}
+		_, err = useCase.Execute(command1)
+		require.NoError(t, err)
+
+		// Trying to add a player with the same name
+		command2 := dto.AddPlayerCommand{
+			GameID:     string(game.ID()),
+			PlayerName: "Bob",
+			AdminID:    12345,
+		}
+		_, err = useCase.Execute(command2)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
 	})
 }

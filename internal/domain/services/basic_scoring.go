@@ -1,6 +1,7 @@
 package services
 
 import (
+	"RIP-Peroni/blood_guess/internal/domain/constants"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 	"RIP-Peroni/blood_guess/internal/domain/value_objects"
 )
@@ -8,25 +9,20 @@ import (
 type BasicScoringRules struct {
 	pointsForDemon   int
 	pointsForMinion  int
-	pointsForGood    int
 	penaltyForDemon  int
 	penaltyForMinion int
-	penaltyForGood   int
 }
 
 func NewBasicScoringRules() *BasicScoringRules {
 	return &BasicScoringRules{
 		pointsForDemon:   10,
 		pointsForMinion:  5,
-		pointsForGood:    2,
 		penaltyForDemon:  3,
 		penaltyForMinion: 2,
-		penaltyForGood:   1,
 	}
 }
 
 // CalculatePointsForUser calculates points for all user predictions
-// Returns the total score
 func (s *BasicScoringRules) CalculatePointsForUser(predictions []*entities.Prediction, realRoles map[string]string) int {
 	totalScore := 0
 
@@ -36,10 +32,13 @@ func (s *BasicScoringRules) CalculatePointsForUser(predictions []*entities.Predi
 			continue
 		}
 
-		if prediction.IsCorrect(realRole) {
-			totalScore += s.getPointsForRole(realRole)
+		predictedRole := prediction.PredictedRole()
+		if predictedRole.String() == realRole {
+			// Правильный прогноз
+			totalScore += constants.PointsForRole(realRole)
 		} else {
-			totalScore -= s.getPenaltyForRole(prediction.PredictedRole())
+			// Неправильный прогноз - штраф
+			totalScore -= constants.PenaltyForRole(predictedRole.String())
 		}
 	}
 
@@ -57,10 +56,12 @@ func (s *BasicScoringRules) CalculatePointsForEachPrediction(predictions []*enti
 			continue
 		}
 
-		if prediction.IsCorrect(realRole) {
-			result[prediction.ID()] = s.getPointsForRole(realRole)
+		predictedRole := prediction.PredictedRole()
+
+		if predictedRole.String() == realRole {
+			result[prediction.ID()] = constants.PointsForRole(realRole)
 		} else {
-			result[prediction.ID()] = -s.getPenaltyForRole(prediction.PredictedRole())
+			result[prediction.ID()] = -constants.PenaltyForRole(predictedRole.String())
 		}
 	}
 
@@ -74,7 +75,7 @@ func (s *BasicScoringRules) getPointsForRole(role string) int {
 	case "minion":
 		return s.pointsForMinion
 	default:
-		return s.pointsForGood
+		return 0
 	}
 }
 
@@ -85,6 +86,11 @@ func (s *BasicScoringRules) getPenaltyForRole(role value_objects.Role) int {
 	case "minion":
 		return s.penaltyForMinion
 	default:
-		return s.penaltyForGood
+		return 0
 	}
+}
+
+// isEvilRole checks if the role is evil
+func (s *BasicScoringRules) isEvilRole(role value_objects.Role) bool {
+	return role.String() == "demon" || role.String() == "minion"
 }

@@ -20,7 +20,7 @@ func TestClosePredictionsUseCase(t *testing.T) {
 	t.Run("successful closing of predictions", func(t *testing.T) {
 		// Creating a game with open predictions
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -52,7 +52,7 @@ func TestClosePredictionsUseCase(t *testing.T) {
 
 	t.Run("Error closing predictions for a non-game creator", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		err = game.OpenPredictions()
@@ -72,7 +72,7 @@ func TestClosePredictionsUseCase(t *testing.T) {
 
 	t.Run("error closing predictions for a game in an invalid state", func(t *testing.T) {
 		game := entities.NewGame("Test Game", 12345)
-		err := game.AddPlayer("Player 1", "townsfolk")
+		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
 
 		// The game has been created, but predictions have not been opened

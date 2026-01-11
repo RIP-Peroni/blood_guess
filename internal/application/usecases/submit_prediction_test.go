@@ -29,9 +29,9 @@ func TestSubmitPredictionUseCase(t *testing.T) {
 	game := entities.NewGame("Test Game", creatorID)
 
 	// Add players to the game
-	err := game.AddPlayer("Player 1", "townsfolk")
+	err := game.AddPlayer("Player 1")
 	require.NoError(t, err)
-	err = game.AddPlayer("Player 2", "outsider")
+	err = game.AddPlayer("Player 2")
 	require.NoError(t, err)
 
 	// Opening the predictions
@@ -123,7 +123,7 @@ func TestSubmitPredictionUseCase(t *testing.T) {
 	t.Run("a prediction error when the game does not accept predictions", func(t *testing.T) {
 		// Create a new game, but don't open the predictions
 		closedGame := entities.NewGame("Closed Game", creatorID)
-		err := closedGame.AddPlayer("Player 3", "townsfolk")
+		err := closedGame.AddPlayer("Player 3")
 		require.NoError(t, err)
 
 		err = gameRepo.Save(closedGame)

@@ -58,10 +58,9 @@ func (uc *StartGameUseCase) toResponse(game *entities.Game) *dto.GameResponse {
 	players := make([]dto.PlayerResponse, 0, len(game.Players()))
 	for _, player := range game.Players() {
 		players = append(players, dto.PlayerResponse{
-			ID:           string(player.ID),
-			Name:         player.Name,
-			AssignedRole: player.AssignedRole,
-			RealRole:     player.RealRole,
+			ID:       string(player.ID),
+			Name:     player.Name,
+			RealRole: player.RealRole,
 		})
 	}
 

@@ -18,9 +18,9 @@ func TestCopyPlayersUseCase(t *testing.T) {
 		useCase := NewCopyPlayersUseCase(gameRepo)
 
 		previousGame := entities.NewGame("Previous Game", 12345)
-		err := previousGame.AddPlayer("Вася", "townsfolk")
+		err := previousGame.AddPlayer("Вася")
 		require.NoError(t, err)
-		err = previousGame.AddPlayer("Петя", "demon")
+		err = previousGame.AddPlayer("Петя")
 		require.NoError(t, err)
 		err = gameRepo.Save(previousGame)
 		require.NoError(t, err)
@@ -39,8 +39,6 @@ func TestCopyPlayersUseCase(t *testing.T) {
 		assert.Len(t, response.Players, 2)
 		assert.Equal(t, "Вася", response.Players[0].Name)
 		assert.Equal(t, "Петя", response.Players[1].Name)
-		assert.Equal(t, "", response.Players[0].AssignedRole) // Роли не копируются
-		assert.Equal(t, "", response.Players[1].AssignedRole)
 	})
 
 	t.Run("copy from most recent game", func(t *testing.T) {

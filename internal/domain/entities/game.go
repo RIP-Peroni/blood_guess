@@ -30,8 +30,7 @@ const (
 type PlayerSlot struct {
 	ID            PlayerSlotID
 	Name          string
-	AssignedRole  string
-	RealRole      string
+	RealRole      string // Actual role after the game (can be any of 4)
 	IsRealRoleSet bool
 }
 
@@ -89,26 +88,21 @@ func (g *Game) EndedAt() *time.Time {
 	return g.endedAt
 }
 
-func (g *Game) AddPlayer(name string, assignedRole ...string) error {
+func (g *Game) AddPlayer(name string) error {
 	if name == "" {
 		return ErrEmptyPlayerName
 	}
 
+	// Проверяем уникальность имени в игре
 	for _, player := range g.players {
 		if player.Name == name {
-			return errors.New("player with this name already exists in this game")
+			return ErrPlayerAlreadyAdded
 		}
-	}
-
-	role := ""
-	if len(assignedRole) > 0 && assignedRole[0] != "" {
-		role = assignedRole[0]
 	}
 
 	player := PlayerSlot{
 		ID:            PlayerSlotID(uuid.New().String()),
 		Name:          name,
-		AssignedRole:  role,
 		RealRole:      "",
 		IsRealRoleSet: false,
 	}
@@ -117,7 +111,6 @@ func (g *Game) AddPlayer(name string, assignedRole ...string) error {
 	return nil
 }
 
-// AddPlayers adds multiple players without specifying roles
 func (g *Game) AddPlayers(names []string) error {
 	for _, name := range names {
 		if err := g.AddPlayer(name); err != nil {
@@ -154,29 +147,12 @@ func (g *Game) CopyPlayersFrom(sourceGame *Game) error {
 			continue
 		}
 
-		// Copy only name, not role
 		if err := g.AddPlayer(player.Name); err != nil {
 			return fmt.Errorf("failed to copy player %s: %w", player.Name, err)
 		}
 	}
 
 	return nil
-}
-
-// SetAssignedRole sets the assigned role to a player (can be used before the game starts)
-func (g *Game) SetAssignedRole(playerID PlayerSlotID, role string) error {
-	if role == "" {
-		return ErrEmptyRole
-	}
-
-	for i, player := range g.players {
-		if player.ID == playerID {
-			g.players[i].AssignedRole = role
-			return nil
-		}
-	}
-
-	return ErrPlayerNotFound
 }
 
 // GetPlayerNames returns a list of player names
@@ -188,10 +164,10 @@ func (g *Game) GetPlayerNames() []string {
 	return names
 }
 
-// HasPlayersWithRoles checks if players have roles assigned
-func (g *Game) HasPlayersWithRoles() bool {
+// HasPlayersWithRealRoles checks if players have real roles set
+func (g *Game) HasPlayersWithRealRoles() bool {
 	for _, player := range g.players {
-		if player.AssignedRole != "" {
+		if player.IsRealRoleSet {
 			return true
 		}
 	}
@@ -246,9 +222,14 @@ func (g *Game) CanAcceptPredictions() bool {
 	return g.status == GameStatusPredictionsOpen
 }
 
+// SetPlayerRealRole sets the player's actual role (which was assigned in the game)
 func (g *Game) SetPlayerRealRole(playerID PlayerSlotID, realRole string) error {
 	if realRole == "" {
 		return ErrEmptyRole
+	}
+
+	if g.status != GameStatusInProgress && g.status != GameStatusFinished {
+		return fmt.Errorf("cannot set real role: game must be in progress or finished")
 	}
 
 	for i, player := range g.players {
@@ -269,4 +250,14 @@ func (g *Game) FindPlayerByID(playerID PlayerSlotID) (*PlayerSlot, error) {
 		}
 	}
 	return nil, ErrPlayerNotFound
+}
+
+// AllRealRolesSet checks if real roles are set for all players
+func (g *Game) AllRealRolesSet() bool {
+	for _, player := range g.players {
+		if !player.IsRealRoleSet {
+			return false
+		}
+	}
+	return true
 }

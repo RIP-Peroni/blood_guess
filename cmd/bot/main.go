@@ -45,6 +45,7 @@ func main() {
 		uow.PredictionRepo,
 		scoringService,
 	)
+	setRealRoleUseCase := usecases.NewSetRealRoleUseCase(uow.GameRepo)
 
 	botAPI := bot.GetAPI()
 
@@ -57,8 +58,7 @@ func main() {
 		"addplayer":   "Добавить одного игрока в игру (с ролью)",
 		"addplayers":  "Добавить нескольких игроков (без ролей)",
 		"copyplayers": "Скопировать игроков из последней игры",
-		"assignroles": "Показать игроков без ролей",
-		"setrole":     "Назначить роль игроку",
+		"setrealrole": "Установить реальную роль игрока после игры",
 		"openpred":    "Открыть прогнозы для игры",
 		"closepred":   "Закрыть прогнозы для игры",
 		"predict":     "Сделать прогноз на игру",
@@ -76,12 +76,12 @@ func main() {
 	bot.RegisterHandler(handlers.NewAddPlayerHandler(botAPI, addPlayerUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewAddPlayersHandler(botAPI, addPlayersUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewCopyPlayersHandler(botAPI, copyPlayersUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewAssignRolesHandler(botAPI, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewPredictHandler(botAPI, submitPredictionUseCase, uow.GameRepo, uow.UserRepo))
 	bot.RegisterHandler(handlers.NewStartGameHandler(botAPI, startGameUseCase, uow.GameRepo))
 	bot.RegisterHandler(handlers.NewFinishGameHandler(botAPI, finishGameUseCase, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewSetRealRoleHandler(botAPI, setRealRoleUseCase))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
