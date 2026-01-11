@@ -96,9 +96,9 @@ func (h *StartGameHandler) Handle(update tgbotapi.Update) error {
 <b>👥 Игроков:</b> %d
 <b>🆔 ID игры:</b> <code>%s</code>
 
-Теперь можно играть в реальной игре! После окончания игры установите реальные роли игроков с помощью <code>/setrole %s &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>
+Теперь можно играть в реальной игре! После окончания игры установите реальные роли игроков с помощью <code>/setrealrole %s &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>
 
-<b>Пример:</b> <code>/setrole %s player-123 demon</code>
+<b>Пример:</b> <code>/setrealrole %s player-123 demon</code>
 
 Когда все роли установлены, завершите игру командой <code>/finish %s</code> для подсчета очков.`,
 		h.EscapeHTML(response.Name),

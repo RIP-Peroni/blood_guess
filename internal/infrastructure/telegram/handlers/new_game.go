@@ -60,7 +60,8 @@ func (h *NewGameHandler) Handle(update tgbotapi.Update) error {
 <b>👑 Создатель:</b> вы
 <b>👥 Игроков:</b> %d
 
-Теперь добавьте игроков с помощью <code>/addplayer</code>`,
+Теперь добавьте нескольких игроков сразу при помощи <code>/addplayers</code>
+или по одному игроку за раз при помощи  <code>/addplayer</code>`,
 		escapedName, escapedID, response.Status, len(response.Players))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)

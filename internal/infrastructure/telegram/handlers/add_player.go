@@ -84,13 +84,10 @@ func (h *AddPlayerHandler) Handle(update tgbotapi.Update) error {
 <b>👤 Игрок:</b> %s
 <b>👥 Всего игроков в игре:</b> %d
 
-Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred %s</code>
-
-<b>Примечание:</b> Роль игроку не назначена. Реальную роль можно установить после игры командой <code>/setrealrole %s &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>`,
+Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred %s</code>`,
 		h.EscapeHTML(response.Name),
 		h.EscapeHTML(playerName),
 		len(response.Players),
-		h.EscapeHTML(gameID),
 		h.EscapeHTML(gameID))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)
