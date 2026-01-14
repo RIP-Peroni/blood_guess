@@ -249,3 +249,16 @@ func (r *InMemoryPredictionRepository) Delete(id entities.PredictionID) error {
 	delete(r.predictions, id)
 	return nil
 }
+
+func (r *InMemoryPredictionRepository) FindAllByUser(userID entities.UserID) ([]*entities.Prediction, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*entities.Prediction
+	for _, prediction := range r.predictions {
+		if prediction.UserID() == userID {
+			result = append(result, prediction)
+		}
+	}
+	return result, nil
+}

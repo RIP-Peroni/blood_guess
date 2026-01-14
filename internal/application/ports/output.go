@@ -24,4 +24,5 @@ type PredictionRepository interface {
 	FindByGame(gameID entities.GameID) ([]*entities.Prediction, error)
 	Update(prediction *entities.Prediction) error
 	Delete(id entities.PredictionID) error
+	FindAllByUser(userID entities.UserID) ([]*entities.Prediction, error) // Добавьте эту строку
 }

@@ -64,8 +64,8 @@ func main() {
 		"openpred":    "Открыть прогнозы для последней созданной игры",
 		"closepred":   "Закрыть прогнозы для последней игры с открытыми прогнозами",
 		"predict":     "Сделать прогноз на роли игроков в последней игре с открытыми прогнозами",
-		"mypredict":   "Показать мои прогнозы",
-		"profile":     "Показать мой профиль",
+		"mypredict":   "Показать мои прогнозы в текущей или указанной игре",
+		"profile":     "Показать мой профиль и статистику",
 		"startgame":   "Начать реальную игру (после закрытия прогнозов)",
 		"finish":      "Завершить последнюю игру в процессе",
 		"awardpoints": "Начислить очки за прогнозы (после установки всех ролей)",
@@ -85,6 +85,8 @@ func main() {
 	bot.RegisterHandler(handlers.NewFinishGameHandler(botAPI, finishGameUseCase, gameFinder))
 	bot.RegisterHandler(handlers.NewSetRealRoleHandler(botAPI, setRealRoleUseCase, gameFinder))
 	bot.RegisterHandler(handlers.NewAwardPointsHandler(botAPI, awardPointsUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewMyPredictHandler(botAPI, uow.GameRepo, uow.UserRepo, uow.PredictionRepo, gameFinder))
+	bot.RegisterHandler(handlers.NewProfileHandler(botAPI, uow.UserRepo, uow.PredictionRepo))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
