@@ -44,23 +44,27 @@ func (uc *AwardPointsUseCase) Execute(command dto.AwardPointsCommand) (*dto.Fini
 		return nil, ErrGameNotFound
 	}
 
+	// Check if user is the game creator
 	if game.CreatorID() != command.AdminID {
 		return nil, ErrNotGameCreator
 	}
 
+	// Check if game is in correct state (finished)
 	if game.Status() != entities.GameStatusFinished {
 		return nil, fmt.Errorf("%w: current status is %s, expected FINISHED", ErrInvalidGameState, game.Status())
 	}
 
-	// Check if all real roles are set
-	if !game.AllRealRolesSet() {
-		var missingRoles []string
-		for _, player := range game.Players() {
-			if !player.IsRealRoleSet {
-				missingRoles = append(missingRoles, player.Name)
-			}
+	// НОВОЕ: Проверяем, установлена ли хотя бы одна роль
+	hasAnyRoleSet := false
+	for _, player := range game.Players() {
+		if player.IsRealRoleSet {
+			hasAnyRoleSet = true
+			break
 		}
-		return nil, fmt.Errorf("not all real roles are set. Missing roles for players: %v", missingRoles)
+	}
+
+	if !hasAnyRoleSet {
+		return nil, fmt.Errorf("не установлено ни одной реальной роли. Используйте команду /setrealrole для установки злых ролей (демон и приспешников)")
 	}
 
 	// Get all predictions for this game
@@ -70,9 +74,15 @@ func (uc *AwardPointsUseCase) Execute(command dto.AwardPointsCommand) (*dto.Fini
 	}
 
 	// Build real roles map
+	// НОВОЕ: Если роль не установлена, считаем игрока мирным (townsfolk)
 	realRoles := make(map[string]string)
 	for _, player := range game.Players() {
-		realRoles[string(player.ID)] = player.RealRole
+		if player.IsRealRoleSet {
+			realRoles[string(player.ID)] = player.RealRole
+		} else {
+			// Если роль не установлена, считаем игрока мирным (townsfolk)
+			realRoles[string(player.ID)] = "townsfolk"
+		}
 	}
 
 	// Calculate points for each prediction
@@ -118,6 +128,7 @@ func (uc *AwardPointsUseCase) Execute(command dto.AwardPointsCommand) (*dto.Fini
 				return nil, fmt.Errorf("failed to award points to prediction %s: %w", prediction.ID(), err)
 			}
 
+			// Update prediction
 			if err := uc.predictionRepo.Update(prediction); err != nil {
 				return nil, fmt.Errorf("failed to update prediction %s: %w", prediction.ID(), err)
 			}

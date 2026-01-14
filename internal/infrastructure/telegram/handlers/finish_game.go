@@ -84,9 +84,11 @@ func (h *FinishGameHandler) Handle(update tgbotapi.Update) error {
 <b>📊 Статус:</b> %s
 <b>⏰ Завершена:</b> %s
 
-Теперь установите реальные роли игроков с помощью <code>/setrealrole</code>
+Теперь установите реальные <b>злые роли</b> игроков с помощью <code>/setrealrole</code>
 
-<b>Пример:</b> <code>/setrealrole Вася demon Коля minion</code>`,
+<b>Пример:</b> <code>/setrealrole Вася demon Коля minion</code>
+
+<b>Примечание:</b> Устанавливайте только злые роли (демон и приспешников). Все остальные игроки автоматически считаются мирными.`,
 		h.EscapeHTML(response.Name),
 		response.Status,
 		response.EndedAt.Format("02.01.2006 15:04"))

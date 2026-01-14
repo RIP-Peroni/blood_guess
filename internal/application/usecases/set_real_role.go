@@ -39,6 +39,11 @@ func (uc *SetRealRoleUseCase) Execute(command dto.SetRealRoleCommand) error {
 			ErrInvalidGameState, game.Status())
 	}
 
+	// НОВОЕ: Разрешаем только злые роли
+	if command.RealRole != "demon" && command.RealRole != "minion" {
+		return fmt.Errorf("можно устанавливать только злые роли (demon, minion). Мирные роли устанавливаются автоматически")
+	}
+
 	if err := game.SetPlayerRealRole(entities.PlayerSlotID(command.PlayerSlotID), command.RealRole); err != nil {
 		return fmt.Errorf("failed to set real role: %w", err)
 	}

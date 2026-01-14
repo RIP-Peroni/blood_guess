@@ -263,8 +263,9 @@ func (c *SetRealRoleCommand) Validate() error {
 	if c.RealRole == "" {
 		return ErrEmptyPredictedRole
 	}
-	if !IsValidGameRole(c.RealRole) {
-		return fmt.Errorf("%w: valid roles are demon, minion, townsfolk, outsider", ErrInvalidRole)
+	// НОВОЕ: Разрешаем только злые роли для установки
+	if c.RealRole != "demon" && c.RealRole != "minion" {
+		return fmt.Errorf("%w: для установки доступны только злые роли: demon, minion. Мирные роли (townsfolk, outsider) устанавливаются автоматически", ErrInvalidRole)
 	}
 	if c.AdminID <= 0 {
 		return ErrInvalidCreatorID

@@ -48,19 +48,19 @@ func (h *SetRealRoleHandler) Handle(update tgbotapi.Update) error {
 <b>Пример:</b> <code>/setrealrole Вася demon Коля minion</code>
 
 <b>❗ Внимание:</b> Эта команда устанавливает РЕАЛЬНЫЕ роли игроков после окончания игры.
-Используйте только после того, как реальная игра завершена.
+<b>Устанавливайте только злые роли (демон и приспешников).</b>
+<b>Все остальные игроки автоматически считаются мирными (горожанами).</b>
 
-<b>Доступные реальные роли:</b>
+<b>Доступные злые роли для установки:</b>
 • <code>demon</code> - демон%s
 • <code>minion</code> - приспешник%s
-• <code>townsfolk</code> - горожанин%s
-• <code>outsider</code> - изгой%s
 
-<b>Примечание:</b> Только создатель игры может устанавливать реальные роли.`,
+<b>Примечание:</b> 
+• Только создатель игры может устанавливать реальные роли.
+• Устанавливайте только злые роли. Все неустановленные роли автоматически считаются горожанами (townsfolk).
+• Можно установить роли нескольким игрокам за раз.`,
 			formatting.RoleEmoji("demon"),
-			formatting.RoleEmoji("minion"),
-			formatting.RoleEmoji("townsfolk"),
-			formatting.RoleEmoji("outsider"))
+			formatting.RoleEmoji("minion"))
 		return h.SendHTML(update.Message.Chat.ID, message)
 	}
 
@@ -102,7 +102,7 @@ func (h *SetRealRoleHandler) Handle(update tgbotapi.Update) error {
 
 		if !dto.IsValidGameRole(role) {
 			errorMessages = append(errorMessages,
-				fmt.Sprintf("❌ Недопустимая роль для игрока '%s': %s", playerName, role))
+				fmt.Sprintf("❌ Недопустимая роль для игрока '%s': %s. Доступны только: demon, minion", playerName, role))
 			continue
 		}
 
