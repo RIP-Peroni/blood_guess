@@ -19,13 +19,13 @@ import (
 type SetRealRoleHandler struct {
 	*BaseHandler
 	setRealRoleInput ports.SetRealRoleInput
-	gameFinder       *usecases.GameFinder
+	gameFinder       usecases.GameFinderInterface
 }
 
 func NewSetRealRoleHandler(
 	bot BotClient,
 	setRealRoleInput ports.SetRealRoleInput,
-	gameFinder *usecases.GameFinder,
+	gameFinder usecases.GameFinderInterface,
 ) *SetRealRoleHandler {
 	return &SetRealRoleHandler{
 		BaseHandler:      NewBaseHandler(bot),

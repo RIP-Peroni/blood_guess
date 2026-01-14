@@ -18,14 +18,14 @@ import (
 type PredictHandler struct {
 	*BaseHandler
 	submitPredictionInput ports.SubmitPredictionInput
-	gameFinder            *usecases.GameFinder
+	gameFinder            usecases.GameFinderInterface
 	userRepo              ports.UserRepository
 }
 
 func NewPredictHandler(
 	bot BotClient,
 	submitPredictionInput ports.SubmitPredictionInput,
-	gameFinder *usecases.GameFinder,
+	gameFinder usecases.GameFinderInterface,
 	userRepo ports.UserRepository,
 ) *PredictHandler {
 	return &PredictHandler{

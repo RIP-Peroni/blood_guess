@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
-	"RIP-Peroni/blood_guess/internal/infrastructure/persistence"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/mocks"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -190,7 +190,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 
 		// Настраиваем mock GameFinder - нет игры
 		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusPredictionsClosed).
-			Return(nil, entities.ErrGameNotFound)
+			Return(nil, usecases.ErrNoGamesWithStatus)
 
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)

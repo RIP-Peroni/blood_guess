@@ -17,13 +17,13 @@ import (
 type ClosePredictionsHandler struct {
 	*BaseHandler
 	closePredictionsInput ports.ClosePredictionsInput
-	gameFinder            *usecases.GameFinder
+	gameFinder            usecases.GameFinderInterface
 }
 
 func NewClosePredictionsHandler(
 	bot BotClient,
 	closePredictionsInput ports.ClosePredictionsInput,
-	gameFinder *usecases.GameFinder,
+	gameFinder usecases.GameFinderInterface,
 ) *ClosePredictionsHandler {
 	return &ClosePredictionsHandler{
 		BaseHandler:           NewBaseHandler(bot),

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"RIP-Peroni/blood_guess/internal/application/ports"
 	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/mocks"
@@ -50,13 +51,17 @@ func (m *MockGameRepository) Update(game *entities.Game) error {
 	return args.Error(0)
 }
 
-// TestGameFinder - тестовая структура, которая имеет поле GameRepo
-// и удовлетворяет требованиям хендлера
+// TestGameFinder - тестовая структура, которая реализует интерфейс GameFinderInterface
 type TestGameFinder struct {
-	GameRepo *MockGameRepository
+	repo *MockGameRepository
 }
 
-// Добавляем методы, чтобы структура была совместима с *usecases.GameFinder
+// GameRepo возвращает репозиторий игр
+func (t *TestGameFinder) GameRepo() ports.GameRepository {
+	return t.repo
+}
+
+// Добавляем методы, чтобы структура была совместима с GameFinderInterface
 // Эти методы не будут использоваться в этом тесте, но нужны для совместимости
 func (t *TestGameFinder) FindActiveGame() (*entities.Game, error) {
 	return nil, nil
@@ -112,12 +117,8 @@ func TestGamesHandler_Handle_WithGames(t *testing.T) {
 	// мы можем использовать unsafe преобразование или создать реальный GameFinder
 	handler := NewGamesHandler(mockAPI, (*usecases.GameFinder)(nil))
 
-	// Приводим тип через явное преобразование
-	// В реальном тесте мы должны создать реальный GameFinder с mock репозиторием
-	// Давайте создадим реальный GameFinder с mock репозиторием
-	gameFinder := &usecases.GameFinder{
-		GameRepo: mockGameRepo, // mockGameRepo реализует интерфейс ports.GameRepository
-	}
+	// Создаем реальный GameFinder с mock репозиторием
+	gameFinder := usecases.NewGameFinder(mockGameRepo)
 
 	handler = NewGamesHandler(mockAPI, gameFinder)
 
@@ -151,9 +152,7 @@ func TestGamesHandler_Handle_NoGames(t *testing.T) {
 	mockGameRepo.On("FindActiveGames").Return([]*entities.Game{}, nil)
 
 	// Создаем реальный GameFinder с mock репозиторием
-	gameFinder := &usecases.GameFinder{
-		GameRepo: mockGameRepo,
-	}
+	gameFinder := usecases.NewGameFinder(mockGameRepo)
 
 	// Ожидаем отправку сообщения
 	expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {

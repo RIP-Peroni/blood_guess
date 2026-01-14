@@ -15,13 +15,13 @@ import (
 type NewGameHandler struct {
 	*BaseHandler
 	createGameInput ports.CreateGameInput
-	gameFinder      *usecases.GameFinder
+	gameFinder      usecases.GameFinderInterface
 }
 
 func NewNewGameHandler(
 	bot BotClient,
 	createGameInput ports.CreateGameInput,
-	gameFinder *usecases.GameFinder,
+	gameFinder usecases.GameFinderInterface,
 ) *NewGameHandler {
 	return &NewGameHandler{
 		BaseHandler:     NewBaseHandler(bot),

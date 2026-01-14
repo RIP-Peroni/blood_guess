@@ -12,10 +12,10 @@ import (
 
 type GamesHandler struct {
 	*BaseHandler
-	gameFinder *usecases.GameFinder
+	gameFinder usecases.GameFinderInterface
 }
 
-func NewGamesHandler(bot BotClient, gameFinder *usecases.GameFinder) *GamesHandler {
+func NewGamesHandler(bot BotClient, gameFinder usecases.GameFinderInterface) *GamesHandler {
 	return &GamesHandler{
 		BaseHandler: NewBaseHandler(bot),
 		gameFinder:  gameFinder,
@@ -30,7 +30,7 @@ func (h *GamesHandler) Handle(update tgbotapi.Update) error {
 	}
 
 	// Используем GameFinder для получения активных игр через его репозиторий
-	activeGames, err := h.gameFinder.GameRepo.FindActiveGames()
+	activeGames, err := h.gameFinder.GameRepo().FindActiveGames()
 	if err != nil {
 		errorMsg := fmt.Sprintf("❌ Ошибка при получении списка игр: %v", err)
 		return h.SendText(update.Message.Chat.ID, errorMsg)

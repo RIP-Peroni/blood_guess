@@ -17,13 +17,13 @@ import (
 type CopyPlayersHandler struct {
 	*BaseHandler
 	copyPlayersInput ports.CopyPlayersInput
-	gameFinder       *usecases.GameFinder
+	gameFinder       usecases.GameFinderInterface
 }
 
 func NewCopyPlayersHandler(
 	bot BotClient,
 	copyPlayersInput ports.CopyPlayersInput,
-	gameFinder *usecases.GameFinder,
+	gameFinder usecases.GameFinderInterface,
 ) *CopyPlayersHandler {
 	return &CopyPlayersHandler{
 		BaseHandler:      NewBaseHandler(bot),

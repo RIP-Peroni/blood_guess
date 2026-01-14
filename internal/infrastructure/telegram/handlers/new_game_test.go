@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"RIP-Peroni/blood_guess/internal/application/dto"
+	"RIP-Peroni/blood_guess/internal/domain/entities"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/mocks"
 	"testing"
 	"time"
@@ -105,16 +106,9 @@ func TestNewGameHandler_Handle_ActiveGameExists(t *testing.T) {
 	// Настраиваем: активная игра уже существует
 	mockGameFinder.On("CanCreateNewGame").Return(false, nil)
 
-	// Создаем mock для активной игры
-	activeGame := &struct {
-		mock.Mock
-		Name    string
-		Status  string
-		Players []interface{}
-	}{}
-	activeGame.Name = "Активная игра"
-	activeGame.Status = "predictions_open"
-	activeGame.Players = []interface{}{}
+	// Создаем реальную игру для теста
+	activeGame := entities.NewGame("Активная игра", 12345)
+	_ = activeGame.OpenPredictions()
 
 	mockGameFinder.On("FindActiveGame").Return(activeGame, nil)
 
