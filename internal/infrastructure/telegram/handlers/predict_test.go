@@ -27,29 +27,62 @@ func (m *MockSubmitPredictionInput) Execute(command dto.SubmitPredictionCommand)
 	return args.Get(0).(*dto.PredictionResponse), args.Error(1)
 }
 
+type MockUserRepository struct {
+	mock.Mock
+}
+
+func (m *MockUserRepository) Save(user *entities.User) error {
+	args := m.Called(user)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) FindById(id entities.UserID) (*entities.User, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entities.User), args.Error(1)
+}
+
+func (m *MockUserRepository) FindByTelegramID(telegramID int64) (*entities.User, error) {
+	args := m.Called(telegramID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entities.User), args.Error(1)
+}
+
+func (m *MockUserRepository) Update(user *entities.User) error {
+	args := m.Called(user)
+	return args.Error(0)
+}
+
 func TestPredictHandler_Handle(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
 	mockUseCase := new(MockSubmitPredictionInput)
-	gameRepo := persistence.NewInMemoryGameRepository()
+	mockGameFinder := new(mocks.MockGameFinder)
 	userRepo := persistence.NewInMemoryUserRepository()
 
 	t.Run("successful prediction submission", func(t *testing.T) {
+		// Создаем тестовую игру
 		game := entities.NewGame("Test Game", 12345)
 		err := game.AddPlayer("Alice")
 		require.NoError(t, err)
-
 		err = game.OpenPredictions()
-		require.NoError(t, err)
-
-		err = gameRepo.Save(game)
 		require.NoError(t, err)
 
 		playerID := string(game.Players()[0].ID)
 
+		// Создаем пользователя
 		user := entities.NewUser(67890, "testuser")
 		err = userRepo.Save(user)
 		require.NoError(t, err)
 
+		// Настраиваем mock GameFinder
+		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusPredictionsOpen).
+			Return(game, nil)
+
+		// Настраиваем mock use case
 		expectedCommand := dto.SubmitPredictionCommand{
 			GameID:        string(game.ID()),
 			UserID:        string(user.ID()),
@@ -70,6 +103,12 @@ func TestPredictHandler_Handle(t *testing.T) {
 
 		mockUseCase.On("Execute", expectedCommand).Return(expectedResponse, nil)
 
+		// Настраиваем mock для userRepo.FindByTelegramID
+		// Вместо реального репозитория используем mock
+		mockUserRepo := new(MockUserRepository)
+		mockUserRepo.On("FindByTelegramID", int64(67890)).Return(user, nil)
+		mockUserRepo.On("Save", user).Return(nil)
+
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)
 			if !ok {
@@ -82,7 +121,8 @@ func TestPredictHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		handler := NewPredictHandler(mockAPI, mockUseCase, gameRepo, userRepo)
+		// Создаем хендлер с mock userRepo
+		handler := NewPredictHandler(mockAPI, mockUseCase, mockGameFinder, mockUserRepo)
 
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
@@ -95,7 +135,7 @@ func TestPredictHandler_Handle(t *testing.T) {
 					LastName:  "User",
 					UserName:  "testuser",
 				},
-				Text: "/predict " + string(game.ID()) + " " + playerID + " demon",
+				Text: "/predict Alice demon",
 				Entities: []tgbotapi.MessageEntity{
 					{
 						Type:   "bot_command",
@@ -110,9 +150,16 @@ func TestPredictHandler_Handle(t *testing.T) {
 		assert.NoError(t, err)
 		mockAPI.AssertExpectations(t)
 		mockUseCase.AssertExpectations(t)
+		mockGameFinder.AssertExpectations(t)
 	})
 
 	t.Run("command without arguments shows usage", func(t *testing.T) {
+		mockAPI := new(mocks.MockBotAPI)
+		mockUseCase := new(MockSubmitPredictionInput)
+		mockGameFinder := new(mocks.MockGameFinder)
+		mockUserRepo := new(MockUserRepository)
+
+		// Ожидаем отправку сообщения с инструкцией
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)
 			if !ok {
@@ -125,7 +172,7 @@ func TestPredictHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		handler := NewPredictHandler(mockAPI, mockUseCase, gameRepo, userRepo)
+		handler := NewPredictHandler(mockAPI, mockUseCase, mockGameFinder, mockUserRepo)
 
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
@@ -155,11 +202,11 @@ func TestPredictHandler_Handle(t *testing.T) {
 func TestPredictHandler_Command(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
 	mockUseCase := new(MockSubmitPredictionInput)
-	gameRepo := persistence.NewInMemoryGameRepository()
-	userRepo := persistence.NewInMemoryUserRepository()
+	mockGameFinder := new(mocks.MockGameFinder)
+	mockUserRepo := new(MockUserRepository)
 
-	handler := NewPredictHandler(mockAPI, mockUseCase, gameRepo, userRepo)
+	handler := NewPredictHandler(mockAPI, mockUseCase, mockGameFinder, mockUserRepo)
 
 	assert.Equal(t, "predict", handler.Command())
-	assert.Equal(t, "Сделать прогноз на роль игрока в игре", handler.Description())
+	assert.Equal(t, "Сделать прогноз на роли игроков в последней игре с открытыми прогнозами", handler.Description())
 }

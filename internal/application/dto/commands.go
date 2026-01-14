@@ -280,3 +280,20 @@ func IsPredictableRole(role string) bool {
 	}
 	return value_objects.IsPredictable(r)
 }
+
+// AwardPointsCommand - command to award points after roles are set
+type AwardPointsCommand struct {
+	GameID  string
+	AdminID int64
+}
+
+// Validate checks the award points command
+func (c *AwardPointsCommand) Validate() error {
+	if c.GameID == "" {
+		return ErrEmptyGameID
+	}
+	if c.AdminID <= 0 {
+		return ErrInvalidCreatorID
+	}
+	return nil
+}

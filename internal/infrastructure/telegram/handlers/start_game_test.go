@@ -32,26 +32,25 @@ func TestStartGameHandler_Handle(t *testing.T) {
 	t.Run("successful game start", func(t *testing.T) {
 		mockAPI := new(mocks.MockBotAPI)
 		mockUseCase := new(MockStartGameInput)
-		gameRepo := persistence.NewInMemoryGameRepository()
+		mockGameFinder := new(mocks.MockGameFinder)
 
-		// Create test game
+		// Создаем тестовую игру
 		adminID := int64(12345)
 		game := entities.NewGame("Test Game", adminID)
 		err := game.AddPlayer("Player 1")
 		require.NoError(t, err)
-
 		err = game.OpenPredictions()
 		require.NoError(t, err)
-
 		err = game.ClosePredictions()
-		require.NoError(t, err)
-
-		err = gameRepo.Save(game)
 		require.NoError(t, err)
 
 		gameID := string(game.ID())
 
-		// Setup mock expectations
+		// Настраиваем mock GameFinder
+		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusPredictionsClosed).
+			Return(game, nil)
+
+		// Настраиваем mock use case
 		expectedCommand := dto.StartGameCommand{
 			GameID:  gameID,
 			AdminID: adminID,
@@ -74,7 +73,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 
 		mockUseCase.On("Execute", expectedCommand).Return(expectedResponse, nil)
 
-		// Expect message to be sent
+		// Ожидаем отправку сообщения
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)
 			if !ok {
@@ -87,10 +86,10 @@ func TestStartGameHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		// Create handler
-		handler := NewStartGameHandler(mockAPI, mockUseCase, gameRepo)
+		// Создаем хендлер
+		handler := NewStartGameHandler(mockAPI, mockUseCase, mockGameFinder)
 
-		// Test update
+		// Тестируем update
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
 				Chat: &tgbotapi.Chat{
@@ -101,7 +100,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 					FirstName: "Admin",
 					UserName:  "admin_user",
 				},
-				Text: "/startgame " + gameID,
+				Text: "/startgame",
 				Entities: []tgbotapi.MessageEntity{
 					{
 						Type:   "bot_command",
@@ -112,30 +111,37 @@ func TestStartGameHandler_Handle(t *testing.T) {
 			},
 		}
 
-		// Execute
+		// Выполняем
 		err = handler.Handle(update)
 		assert.NoError(t, err)
 
-		// Verify mocks
+		// Проверяем моки
 		mockAPI.AssertExpectations(t)
 		mockUseCase.AssertExpectations(t)
+		mockGameFinder.AssertExpectations(t)
 	})
 
 	t.Run("error: not creator", func(t *testing.T) {
 		mockAPI := new(mocks.MockBotAPI)
 		mockUseCase := new(MockStartGameInput)
-		gameRepo := persistence.NewInMemoryGameRepository()
+		mockGameFinder := new(mocks.MockGameFinder)
 
-		// Create game with different creator
+		// Создаем игру с другим создателем
 		creatorID := int64(12345)
 		otherUserID := int64(99999)
 		game := entities.NewGame("Test Game", creatorID)
-		err := gameRepo.Save(game)
+		err := game.AddPlayer("Player 1")
+		require.NoError(t, err)
+		err = game.OpenPredictions()
+		require.NoError(t, err)
+		err = game.ClosePredictions()
 		require.NoError(t, err)
 
-		gameID := string(game.ID())
+		// Настраиваем mock GameFinder
+		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusPredictionsClosed).
+			Return(game, nil)
 
-		// Expect error message
+		// Ожидаем сообщение об ошибке
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)
 			if !ok {
@@ -148,7 +154,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		handler := NewStartGameHandler(mockAPI, mockUseCase, gameRepo)
+		handler := NewStartGameHandler(mockAPI, mockUseCase, mockGameFinder)
 
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
@@ -158,7 +164,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 				From: &tgbotapi.User{
 					ID: otherUserID,
 				},
-				Text: "/startgame " + gameID,
+				Text: "/startgame",
 				Entities: []tgbotapi.MessageEntity{
 					{
 						Type:   "bot_command",
@@ -172,12 +178,19 @@ func TestStartGameHandler_Handle(t *testing.T) {
 		err = handler.Handle(update)
 		assert.NoError(t, err)
 		mockAPI.AssertExpectations(t)
+		mockGameFinder.AssertExpectations(t)
+		// Use case не должен вызываться
+		mockUseCase.AssertNotCalled(t, "Execute", mock.Anything)
 	})
 
 	t.Run("command without arguments shows usage", func(t *testing.T) {
 		mockAPI := new(mocks.MockBotAPI)
 		mockUseCase := new(MockStartGameInput)
-		gameRepo := persistence.NewInMemoryGameRepository()
+		mockGameFinder := new(mocks.MockGameFinder)
+
+		// Настраиваем mock GameFinder - нет игры
+		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusPredictionsClosed).
+			Return(nil, entities.ErrGameNotFound)
 
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)
@@ -191,7 +204,7 @@ func TestStartGameHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		handler := NewStartGameHandler(mockAPI, mockUseCase, gameRepo)
+		handler := NewStartGameHandler(mockAPI, mockUseCase, mockGameFinder)
 
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
@@ -215,15 +228,16 @@ func TestStartGameHandler_Handle(t *testing.T) {
 		err := handler.Handle(update)
 		assert.NoError(t, err)
 		mockAPI.AssertExpectations(t)
+		mockGameFinder.AssertExpectations(t)
 	})
 }
 
 func TestStartGameHandler_Command(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
 	mockUseCase := new(MockStartGameInput)
-	gameRepo := persistence.NewInMemoryGameRepository()
+	mockGameFinder := new(mocks.MockGameFinder)
 
-	handler := NewStartGameHandler(mockAPI, mockUseCase, gameRepo)
+	handler := NewStartGameHandler(mockAPI, mockUseCase, mockGameFinder)
 
 	assert.Equal(t, "startgame", handler.Command())
 	assert.Equal(t, "Начать реальную игру (после закрытия прогнозов)", handler.Description())

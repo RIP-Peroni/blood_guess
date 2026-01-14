@@ -57,3 +57,8 @@ type CopyPlayersInput interface {
 type SetRealRoleInput interface {
 	Execute(command dto.SetRealRoleCommand) error
 }
+
+// AwardPointsInput - port for awarding points after roles are set
+type AwardPointsInput interface {
+	Execute(command dto.AwardPointsCommand) (*dto.FinishGameResponse, error)
+}

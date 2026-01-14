@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,18 +17,18 @@ import (
 type ClosePredictionsHandler struct {
 	*BaseHandler
 	closePredictionsInput ports.ClosePredictionsInput
-	gameRepo              ports.GameRepository
+	gameFinder            *usecases.GameFinder
 }
 
 func NewClosePredictionsHandler(
 	bot BotClient,
 	closePredictionsInput ports.ClosePredictionsInput,
-	gameRepo ports.GameRepository,
+	gameFinder *usecases.GameFinder,
 ) *ClosePredictionsHandler {
 	return &ClosePredictionsHandler{
 		BaseHandler:           NewBaseHandler(bot),
 		closePredictionsInput: closePredictionsInput,
-		gameRepo:              gameRepo,
+		gameFinder:            gameFinder,
 	}
 }
 
@@ -38,21 +40,26 @@ func (h *ClosePredictionsHandler) Handle(update tgbotapi.Update) error {
 	}
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
-	if args == "" {
-		message := `<b>Использование:</b> <code>/closepred &lt;ID_игры&gt;</code>
-
-<b>Пример:</b> <code>/closepred abc123</code>
-
-<b>Примечание:</b> Только создатель игры может закрывать прогнозы.`
-		return h.SendHTML(update.Message.Chat.ID, message)
+	if args != "" {
+		// Старый формат с ID игры - для обратной совместимости
+		h.SendHTML(update.Message.Chat.ID,
+			`<i>Примечание: Теперь команда /closepred не требует ID игры. Она автоматически находит последнюю игру с открытыми прогнозами.</i>`)
 	}
 
-	gameID := args
-
-	game, err := h.gameRepo.FindByID(entities.GameID(gameID))
+	// Находим последнюю игру в статусе PREDICTIONS_OPEN
+	game, err := h.gameFinder.FindLastGameByStatus(entities.GameStatusPredictionsOpen)
 	if err != nil {
+		if errors.Is(err, usecases.ErrNoGamesWithStatus) {
+			return h.SendHTML(update.Message.Chat.ID,
+				`❌ <b>Не найдена игра для закрытия прогнозов!</b>
+
+Нет игр в статусе "прогнозы открыты". Возможные причины:
+1. Игра еще не создана - используйте <code>/newgame</code>
+2. Прогнозы еще не открыты - используйте <code>/openpred</code>
+3. Игра уже перешла в другой статус - используйте <code>/games</code> для просмотра`)
+		}
 		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Игра с ID <code>%s</code> не найдена.", h.EscapeHTML(gameID)))
+			fmt.Sprintf("❌ Ошибка при поиске игры: %v", err))
 	}
 
 	if game.CreatorID() != update.Message.From.ID {
@@ -60,13 +67,8 @@ func (h *ClosePredictionsHandler) Handle(update tgbotapi.Update) error {
 			"❌ Только создатель игры может закрывать прогнозы.")
 	}
 
-	if game.Status() != entities.GameStatusPredictionsOpen {
-		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Нельзя закрыть прогнозы. Текущий статус игры: <b>%s</b>. Прогнозы должны быть открыты.", game.Status()))
-	}
-
 	command := dto.ClosePredictionsCommand{
-		GameID:  gameID,
+		GameID:  string(game.ID()),
 		AdminID: update.Message.From.ID,
 	}
 
@@ -84,11 +86,10 @@ func (h *ClosePredictionsHandler) Handle(update tgbotapi.Update) error {
 
 Прогнозы больше не принимаются. Можно начинать реальную игру!
 
-Для начала игры используйте: <code>/startgame %s</code>`,
+Для начала игры используйте: <code>/startgame</code>`,
 		h.EscapeHTML(response.Name),
 		response.Status,
-		len(response.Players),
-		h.EscapeHTML(gameID))
+		len(response.Players))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)
 }
@@ -98,5 +99,5 @@ func (h *ClosePredictionsHandler) Command() string {
 }
 
 func (h *ClosePredictionsHandler) Description() string {
-	return "Закрыть прогнозы для игры"
+	return "Закрыть прогнозы для последней игры с открытыми прогнозами"
 }

@@ -20,38 +20,6 @@ func NewCopyPlayersUseCase(gameRepo ports.GameRepository) *CopyPlayersUseCase {
 	}
 }
 
-// findLastGameByCreator Finds the creator's latest game (except the one specified)
-func (uc *CopyPlayersUseCase) findLastGameByCreator(creatorID int64, excludeGameID string) (*entities.Game, error) {
-	games, err := uc.gameRepo.FindActiveGames()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get active games: %w", err)
-	}
-
-	// Filter games by creator and exclude the current game
-	var creatorGames []*entities.Game
-	for _, game := range games {
-		if game == nil {
-			continue
-		}
-
-		// We check that the game has the correct ID and creator.
-		if game.CreatorID() == creatorID && string(game.ID()) != excludeGameID {
-			creatorGames = append(creatorGames, game)
-		}
-	}
-
-	if len(creatorGames) == 0 {
-		return nil, nil
-	}
-
-	// Sort by creation date (latest first)
-	sort.Slice(creatorGames, func(i, j int) bool {
-		return creatorGames[i].CreatedAt().After(creatorGames[j].CreatedAt())
-	})
-
-	return creatorGames[0], nil
-}
-
 // Execute copies players from the last game
 func (uc *CopyPlayersUseCase) Execute(command dto.CopyPlayersCommand) (*dto.GameResponse, error) {
 	if err := command.Validate(); err != nil {
@@ -71,14 +39,22 @@ func (uc *CopyPlayersUseCase) Execute(command dto.CopyPlayersCommand) (*dto.Game
 		return nil, fmt.Errorf("%w: current status is %s", ErrInvalidGameState, targetGame.Status())
 	}
 
-	sourceGame, err := uc.findLastGameByCreator(command.AdminID, command.TargetGameID)
+	// Find the last game in FINISHED status
+	finishedGames, err := uc.gameRepo.FindByStatus(entities.GameStatusFinished)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find previous game: %w", err)
+		return nil, fmt.Errorf("failed to find finished games: %w", err)
 	}
 
-	if sourceGame == nil {
-		return nil, fmt.Errorf("no previous games found for this creator")
+	if len(finishedGames) == 0 {
+		return nil, fmt.Errorf("no finished games found")
 	}
+
+	// Sort by creation date (latest first)
+	sort.Slice(finishedGames, func(i, j int) bool {
+		return finishedGames[i].CreatedAt().After(finishedGames[j].CreatedAt())
+	})
+
+	sourceGame := finishedGames[0]
 
 	if len(sourceGame.Players()) == 0 {
 		return nil, fmt.Errorf("source game has no players")

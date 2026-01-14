@@ -1,13 +1,16 @@
 package handlers
 
 import (
-	"RIP-Peroni/blood_guess/internal/domain/constants"
-	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/formatting"
+	"errors"
 	"fmt"
 	"strings"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
+	"RIP-Peroni/blood_guess/internal/domain/constants"
+	"RIP-Peroni/blood_guess/internal/domain/entities"
+	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/formatting"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -16,15 +19,18 @@ import (
 type SetRealRoleHandler struct {
 	*BaseHandler
 	setRealRoleInput ports.SetRealRoleInput
+	gameFinder       *usecases.GameFinder
 }
 
 func NewSetRealRoleHandler(
 	bot BotClient,
 	setRealRoleInput ports.SetRealRoleInput,
+	gameFinder *usecases.GameFinder,
 ) *SetRealRoleHandler {
 	return &SetRealRoleHandler{
 		BaseHandler:      NewBaseHandler(bot),
 		setRealRoleInput: setRealRoleInput,
+		gameFinder:       gameFinder,
 	}
 }
 
@@ -37,11 +43,11 @@ func (h *SetRealRoleHandler) Handle(update tgbotapi.Update) error {
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	if args == "" {
-		message := fmt.Sprintf(`<b>Использование:</b> <code>/setrealrole &lt;ID_игры&gt; &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>
+		message := fmt.Sprintf(`<b>Использование:</b> <code>/setrealrole &lt;имя игрока&gt; &lt;роль&gt; [&lt;имя игрока&gt; &lt;роль&gt; ...]</code>
 
-<b>Пример:</b> <code>/setrealrole abc123 def456 demon</code>
+<b>Пример:</b> <code>/setrealrole Вася demon Коля minion</code>
 
-<b>❗ Внимание:</b> Эта команда устанавливает РЕАЛЬНУЮ роль игрока после окончания игры.
+<b>❗ Внимание:</b> Эта команда устанавливает РЕАЛЬНЫЕ роли игроков после окончания игры.
 Используйте только после того, как реальная игра завершена.
 
 <b>Доступные реальные роли:</b>
@@ -58,81 +64,115 @@ func (h *SetRealRoleHandler) Handle(update tgbotapi.Update) error {
 		return h.SendHTML(update.Message.Chat.ID, message)
 	}
 
-	parts := strings.Fields(args)
-	if len(parts) < 3 {
+	// Находим последнюю игру в статусе FINISHED
+	game, err := h.gameFinder.FindLastGameByStatus(entities.GameStatusFinished)
+	if err != nil {
+		if errors.Is(err, usecases.ErrNoGamesWithStatus) {
+			return h.SendHTML(update.Message.Chat.ID,
+				`❌ <b>Не найдена игра для установки реальных ролей!</b>
+
+Нет игр в статусе "завершена". Возможные причины:
+1. Игра еще не завершена - используйте <code>/finish</code>
+2. Игра еще не начата - используйте <code>/startgame</code>
+3. Используйте <code>/games</code> для просмотра`)
+		}
 		return h.SendHTML(update.Message.Chat.ID,
-			"❌ Недостаточно аргументов. Используйте: <code>/setrealrole &lt;ID_игры&gt; &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>")
+			fmt.Sprintf("❌ Ошибка при поиске игры: %v", err))
 	}
 
-	gameID := parts[0]
-	playerSlotID := parts[1]
-	role := parts[2]
+	if game.CreatorID() != update.Message.From.ID {
+		return h.SendHTML(update.Message.Chat.ID,
+			"❌ Только создатель игры может устанавливать реальные роли.")
+	}
 
-	if !dto.IsValidGameRole(role) {
-		validRoles := dto.GetValidGameRoles()
-		var rolesList []string
-		for _, r := range validRoles {
-			rolesList = append(rolesList, fmt.Sprintf("<code>%s</code> %s", r, formatting.RoleEmoji(r)))
+	// Парсим аргументы: чередование имени игрока и роли
+	parts := parseArguments(args)
+	if len(parts)%2 != 0 {
+		return h.SendHTML(update.Message.Chat.ID,
+			"❌ Нечетное количество аргументов. Ожидается формат: <code>/setrealrole имя1 роль1 имя2 роль2 ...</code>")
+	}
+
+	var successMessages []string
+	var errorMessages []string
+
+	// Обрабатываем пары (имя, роль)
+	for i := 0; i < len(parts); i += 2 {
+		playerName := parts[i]
+		role := parts[i+1]
+
+		if !dto.IsValidGameRole(role) {
+			errorMessages = append(errorMessages,
+				fmt.Sprintf("❌ Недопустимая роль для игрока '%s': %s", playerName, role))
+			continue
 		}
 
-		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf(`❌ Недопустимая роль: <code>%s</code>
+		// Находим игрока по имени
+		var playerSlotID string
+		for _, player := range game.Players() {
+			if player.Name == playerName {
+				playerSlotID = string(player.ID)
+				break
+			}
+		}
 
-<b>Допустимые реальные роли:</b>
-%s`,
-				h.EscapeHTML(role),
-				strings.Join(rolesList, "\n")))
+		if playerSlotID == "" {
+			errorMessages = append(errorMessages,
+				fmt.Sprintf("❌ Игрок '%s' не найден в игре", playerName))
+			continue
+		}
+
+		command := dto.SetRealRoleCommand{
+			GameID:       string(game.ID()),
+			PlayerSlotID: playerSlotID,
+			RealRole:     role,
+			AdminID:      update.Message.From.ID,
+		}
+
+		if err := h.setRealRoleInput.Execute(command); err != nil {
+			errorMessages = append(errorMessages,
+				fmt.Sprintf("❌ Не удалось установить роль для '%s': %v", playerName, err))
+		} else {
+			roleEmoji := formatting.RoleEmoji(role)
+			roleDisplayName := formatting.RoleDisplayName(role)
+
+			pointsInfo := ""
+			if formatting.IsEvilRole(role) {
+				pointsInfo = fmt.Sprintf(" (%+d очков за правильный прогноз)",
+					constants.PointsForRole(role))
+			}
+
+			successMessages = append(successMessages,
+				fmt.Sprintf("✅ %s → %s %s%s",
+					playerName, roleEmoji, roleDisplayName, pointsInfo))
+		}
 	}
 
-	command := dto.SetRealRoleCommand{
-		GameID:       gameID,
-		PlayerSlotID: playerSlotID,
-		RealRole:     role,
-		AdminID:      update.Message.From.ID,
+	// Формируем итоговое сообщение
+	var sb strings.Builder
+
+	if len(successMessages) > 0 {
+		sb.WriteString(fmt.Sprintf(`✅ <b>Реальные роли установлены!</b>
+
+<b>🎮 Игра:</b> %s
+<b>📊 Статус:</b> %s
+<b>✅ Установленные роли:</b>
+%s
+`,
+			h.EscapeHTML(game.Name()),
+			game.Status(),
+			strings.Join(successMessages, "\n")))
 	}
 
-	if err := h.setRealRoleInput.Execute(command); err != nil {
-		errorMsg := fmt.Sprintf("❌ Не удалось установить реальную роль: %v", err)
-		return h.SendText(update.Message.Chat.ID, errorMsg)
+	if len(errorMessages) > 0 {
+		sb.WriteString("\n<b>⚠️ Ошибки:</b>\n")
+		sb.WriteString(strings.Join(errorMessages, "\n"))
 	}
 
-	roleEmoji := formatting.RoleEmoji(role)
-	roleDisplayName := formatting.RoleDisplayName(role)
-
-	isEvilRole := formatting.IsEvilRole(role)
-	pointsInfo := ""
-
-	if isEvilRole {
-		pointsInfo = fmt.Sprintf(`
-
-<b>📊 Влияние на очки пользователей:</b>
-• Если кто-то предсказал для этого игрока правильную злую роль: <b>+%d очков</b> %s
-• Если кто-то ошибся с злой ролью: <b>-%d очков</b>`,
-			constants.PointsForRole(role),
-			formatting.RoleEmoji(role),
-			constants.PenaltyForRole(role))
-	} else {
-		pointsInfo = `
-
-<b>📊 Влияние на очки пользователей:</b>
-• Если кто-то предсказал для этого игрока злую роль: <b>штраф</b>`
+	if len(successMessages) == 0 && len(errorMessages) == 0 {
+		sb.WriteString("❌ Не удалось установить ни одной роли.")
 	}
 
-	successMsg := fmt.Sprintf(`✅ <b>Реальная роль установлена!</b>
-
-<b>🎮 Игра:</b> <code>%s</code>
-<b>👤 Игрок ID:</b> <code>%s</code>
-<b>🎭 Реальная роль:</b> %s <b>%s</b> (%s)%s
-
-Продолжайте устанавливать реальные роли для других игроков.`,
-		h.EscapeHTML(gameID),
-		h.EscapeHTML(playerSlotID),
-		roleEmoji,
-		h.EscapeHTML(role),
-		roleDisplayName,
-		pointsInfo)
-
-	return h.SendHTML(update.Message.Chat.ID, successMsg)
+	return h.SendHTML(update.Message.Chat.ID, sb.String())
 }
 
 func (h *SetRealRoleHandler) Command() string {
@@ -140,5 +180,5 @@ func (h *SetRealRoleHandler) Command() string {
 }
 
 func (h *SetRealRoleHandler) Description() string {
-	return "Установить реальную роль игрока после игры"
+	return "Установить реальные роли игрокам после игры"
 }

@@ -28,9 +28,9 @@ func (m *MockCreateGameInput) Execute(command dto.CreateGameCommand) (*dto.GameR
 func TestNewGameHandler_Handle(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
 	mockUseCase := new(MockCreateGameInput)
+	mockGameFinder := new(mocks.MockGameFinder)
 
-	// Set up expectations for a successful case
-	// Note: CreatorID must be 67890 (as in update.Message.From.ID)
+	// Настраиваем ожидания для успешного случая
 	expectedCommand := dto.CreateGameCommand{
 		Name:      "Тестовая игра",
 		CreatorID: 67890,
@@ -46,7 +46,9 @@ func TestNewGameHandler_Handle(t *testing.T) {
 	}
 
 	mockUseCase.On("Execute", expectedCommand).Return(expectedResponse, nil)
+	mockGameFinder.On("CanCreateNewGame").Return(true, nil)
 
+	// Ожидаем отправку сообщения
 	expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 		msg, ok := c.(tgbotapi.MessageConfig)
 		if !ok {
@@ -59,8 +61,10 @@ func TestNewGameHandler_Handle(t *testing.T) {
 
 	mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-	handler := NewNewGameHandler(mockAPI, mockUseCase)
+	// Создаем хендлер
+	handler := NewNewGameHandler(mockAPI, mockUseCase, mockGameFinder)
 
+	// Тестируем update
 	update := tgbotapi.Update{
 		Message: &tgbotapi.Message{
 			Chat: &tgbotapi.Chat{
@@ -88,6 +92,76 @@ func TestNewGameHandler_Handle(t *testing.T) {
 	assert.NoError(t, err)
 	mockAPI.AssertExpectations(t)
 	mockUseCase.AssertExpectations(t)
+	mockGameFinder.AssertExpectations(t)
 	assert.Equal(t, "newgame", handler.Command())
-	assert.Equal(t, "Создать новую игру", handler.Description())
+	assert.Equal(t, "Создать новую игру (если нет других активных игр)", handler.Description())
+}
+
+func TestNewGameHandler_Handle_ActiveGameExists(t *testing.T) {
+	mockAPI := new(mocks.MockBotAPI)
+	mockUseCase := new(MockCreateGameInput)
+	mockGameFinder := new(mocks.MockGameFinder)
+
+	// Настраиваем: активная игра уже существует
+	mockGameFinder.On("CanCreateNewGame").Return(false, nil)
+
+	// Создаем mock для активной игры
+	activeGame := &struct {
+		mock.Mock
+		Name    string
+		Status  string
+		Players []interface{}
+	}{}
+	activeGame.Name = "Активная игра"
+	activeGame.Status = "predictions_open"
+	activeGame.Players = []interface{}{}
+
+	mockGameFinder.On("FindActiveGame").Return(activeGame, nil)
+
+	// Ожидаем отправку сообщения об ошибке
+	expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
+		msg, ok := c.(tgbotapi.MessageConfig)
+		if !ok {
+			return false
+		}
+		return msg.ChatID == 12345 &&
+			msg.ParseMode == tgbotapi.ModeHTML &&
+			len(msg.Text) > 0
+	})
+
+	mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
+
+	// Создаем хендлер
+	handler := NewNewGameHandler(mockAPI, mockUseCase, mockGameFinder)
+
+	// Тестируем update
+	update := tgbotapi.Update{
+		Message: &tgbotapi.Message{
+			Chat: &tgbotapi.Chat{
+				ID: 12345,
+			},
+			From: &tgbotapi.User{
+				ID:        67890,
+				FirstName: "Test",
+				LastName:  "User",
+				UserName:  "testuser",
+			},
+			Text: "/newgame Новая игра",
+			Entities: []tgbotapi.MessageEntity{
+				{
+					Type:   "bot_command",
+					Offset: 0,
+					Length: 8,
+				},
+			},
+		},
+	}
+
+	err := handler.Handle(update)
+
+	assert.NoError(t, err)
+	mockAPI.AssertExpectations(t)
+	mockGameFinder.AssertExpectations(t)
+	// Use case не должен вызываться
+	mockUseCase.AssertNotCalled(t, "Execute", mock.Anything)
 }

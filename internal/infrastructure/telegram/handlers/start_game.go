@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,18 +17,18 @@ import (
 type StartGameHandler struct {
 	*BaseHandler
 	startGameInput ports.StartGameInput
-	gameRepo       ports.GameRepository
+	gameFinder     *usecases.GameFinder
 }
 
 func NewStartGameHandler(
 	bot BotClient,
 	startGameInput ports.StartGameInput,
-	gameRepo ports.GameRepository,
+	gameFinder *usecases.GameFinder,
 ) *StartGameHandler {
 	return &StartGameHandler{
 		BaseHandler:    NewBaseHandler(bot),
 		startGameInput: startGameInput,
-		gameRepo:       gameRepo,
+		gameFinder:     gameFinder,
 	}
 }
 
@@ -38,25 +40,26 @@ func (h *StartGameHandler) Handle(update tgbotapi.Update) error {
 	}
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
-	if args == "" {
-		message := `<b>Использование:</b> <code>/startgame &lt;ID_игры&gt;</code>
-
-<b>Пример:</b> <code>/startgame abc123</code>
-
-<b>Как получить ID игры:</b>
-Используйте команду <code>/games</code> для просмотра списка игр.
-
-<b>Примечание:</b> Только создатель игры может начинать реальную игру. Прогнозы должны быть закрыты.`
-		return h.SendHTML(update.Message.Chat.ID, message)
+	if args != "" {
+		// Старый формат с ID игры - для обратной совместимости
+		h.SendHTML(update.Message.Chat.ID,
+			`<i>Примечание: Теперь команда /startgame не требует ID игры. Она автоматически находит последнюю игру с закрытыми прогнозами.</i>`)
 	}
 
-	gameID := args
-
-	// First, check if game exists and user is creator
-	game, err := h.gameRepo.FindByID(entities.GameID(gameID))
+	// Находим последнюю игру в статусе PREDICTIONS_CLOSED
+	game, err := h.gameFinder.FindLastGameByStatus(entities.GameStatusPredictionsClosed)
 	if err != nil {
+		if errors.Is(err, usecases.ErrNoGamesWithStatus) {
+			return h.SendHTML(update.Message.Chat.ID,
+				`❌ <b>Не найдена игра для начала!</b>
+
+Нет игр в статусе "прогнозы закрыты". Возможные причины:
+1. Игра еще не создана - используйте <code>/newgame</code>
+2. Прогнозы еще не закрыты - используйте <code>/closepred</code>
+3. Игра уже перешла в другой статус - используйте <code>/games</code> для просмотра`)
+		}
 		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Игра с ID <code>%s</code> не найдена.", h.EscapeHTML(gameID)))
+			fmt.Sprintf("❌ Ошибка при поиске игры: %v", err))
 	}
 
 	if game.CreatorID() != update.Message.From.ID {
@@ -64,22 +67,8 @@ func (h *StartGameHandler) Handle(update tgbotapi.Update) error {
 			"❌ Только создатель игры может начинать реальную игру.")
 	}
 
-	// Check current status for better error messages
-	if game.Status() != entities.GameStatusPredictionsClosed {
-		statusMessages := map[entities.GameStatus]string{
-			entities.GameStatusCreated:         "❌ Нельзя начать игру. Игра только создана. Сначала откройте прогнозы командой <code>/openpred</code>.",
-			entities.GameStatusPredictionsOpen: "❌ Нельзя начать игру. Прогнозы еще открыты. Сначала закройте прогнозы командой <code>/closepred</code>.",
-			entities.GameStatusInProgress:      "❌ Игра уже начата!",
-			entities.GameStatusFinished:        "❌ Игра уже завершена!",
-		}
-
-		if msg, ok := statusMessages[game.Status()]; ok {
-			return h.SendHTML(update.Message.Chat.ID, msg)
-		}
-	}
-
 	command := dto.StartGameCommand{
-		GameID:  gameID,
+		GameID:  string(game.ID()),
 		AdminID: update.Message.From.ID,
 	}
 
@@ -94,20 +83,15 @@ func (h *StartGameHandler) Handle(update tgbotapi.Update) error {
 <b>🎮 Игра:</b> %s
 <b>📊 Статус:</b> %s
 <b>👥 Игроков:</b> %d
-<b>🆔 ID игры:</b> <code>%s</code>
 
-Теперь можно играть в реальной игре! После окончания игры установите реальные роли игроков с помощью <code>/setrealrole %s &lt;ID_игрока&gt; &lt;реальная_роль&gt;</code>
+Теперь можно играть в реальной игре! После окончания игры установите реальные роли игроков с помощью <code>/setrealrole</code>
 
-<b>Пример:</b> <code>/setrealrole %s player-123 demon</code>
+<b>Пример:</b> <code>/setrealrole Вася demon Коля minion</code>
 
-Когда все роли установлены, завершите игру командой <code>/finish %s</code> для подсчета очков.`,
+Когда все роли установлены, завершите игру командой <code>/finish</code> для подсчета очков.`,
 		h.EscapeHTML(response.Name),
 		response.Status,
-		len(response.Players),
-		h.EscapeHTML(gameID),
-		h.EscapeHTML(gameID),
-		h.EscapeHTML(gameID),
-		h.EscapeHTML(gameID))
+		len(response.Players))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)
 }

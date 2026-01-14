@@ -1,14 +1,15 @@
 package handlers
 
 import (
-	"RIP-Peroni/blood_guess/internal/domain/constants"
-	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/formatting"
-	"fmt"
-	"strings"
-
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
+	"RIP-Peroni/blood_guess/internal/domain/constants"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
+	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/formatting"
+	"errors"
+	"fmt"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -17,20 +18,20 @@ import (
 type PredictHandler struct {
 	*BaseHandler
 	submitPredictionInput ports.SubmitPredictionInput
-	gameRepo              ports.GameRepository
+	gameFinder            *usecases.GameFinder
 	userRepo              ports.UserRepository
 }
 
 func NewPredictHandler(
 	bot BotClient,
 	submitPredictionInput ports.SubmitPredictionInput,
-	gameRepo ports.GameRepository,
+	gameFinder *usecases.GameFinder,
 	userRepo ports.UserRepository,
 ) *PredictHandler {
 	return &PredictHandler{
 		BaseHandler:           NewBaseHandler(bot),
 		submitPredictionInput: submitPredictionInput,
-		gameRepo:              gameRepo,
+		gameFinder:            gameFinder,
 		userRepo:              userRepo,
 	}
 }
@@ -44,19 +45,14 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	if args == "" {
-		message := fmt.Sprintf(`<b>Использование:</b> <code>/predict &lt;ID_игры&gt; &lt;ID_игрока&gt; &lt;роль&gt;</code>
+		message := fmt.Sprintf(`<b>Использование:</b> <code>/predict &lt;имя игрока&gt; &lt;роль&gt; [&lt;имя игрока&gt; &lt;роль&gt; ...]</code>
 
-<b>Пример:</b> <code>/predict abc123 def456 demon</code>
+<b>Пример:</b> <code>/predict Вася demon Петя minion Коля minion</code>
 
-<b>Как получить ID игрока:</b>
-Используйте команду <code>/games</code> для просмотра списка игр.
-Затем используйте <code>/gameinfo &lt;ID_игры&gt;</code> для просмотра ID игроков.
-
-<b>Доступные роли для прогноза:</b>
-• <code>demon</code> - демон (злая роль)
-• <code>minion</code> - приспешник (злая роль)
-
-<b>❗ Внимание:</b> Прогнозировать можно только злые роли! Горожане и изгои не прогнозируются.
+<b>Примечание:</b>
+• Можно сделать несколько прогнозов за один раз
+• Имена игроков должны быть такими же, как при добавлении (регистр важен)
+• Доступные роли для прогноза: <code>demon</code> и <code>minion</code>
 
 <b>Система начисления очков:</b>
 ✅ Угадал демона: %d очков
@@ -73,58 +69,23 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 		return h.SendHTML(update.Message.Chat.ID, message)
 	}
 
-	// Parse arguments: /predict <game_id> <player_id> <role>
-	parts := strings.Fields(args)
-	if len(parts) < 3 {
-		return h.SendHTML(update.Message.Chat.ID,
-			"❌ Недостаточно аргументов. Используйте: <code>/predict &lt;ID_игры&gt; &lt;ID_игрока&gt; &lt;роль&gt;</code>")
-	}
-
-	gameID := parts[0]
-	playerSlotID := parts[1]
-	role := parts[2]
-
-	game, err := h.gameRepo.FindByID(entities.GameID(gameID))
+	// Находим последнюю игру в статусе PREDICTIONS_OPEN
+	game, err := h.gameFinder.FindLastGameByStatus(entities.GameStatusPredictionsOpen)
 	if err != nil {
-		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Игра с ID <code>%s</code> не найдена.", h.EscapeHTML(gameID)))
-	}
+		if errors.Is(err, usecases.ErrNoGamesWithStatus) {
+			return h.SendHTML(update.Message.Chat.ID,
+				`❌ <b>Не найдена игра для прогнозов!</b>
 
-	if !game.CanAcceptPredictions() {
-		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Прогнозы для этой игры не принимаются. Текущий статус: <b>%s</b>.", game.Status()))
-	}
-
-	playerFound := false
-	var playerName string
-	for _, player := range game.Players() {
-		if string(player.ID) == playerSlotID {
-			playerFound = true
-			playerName = player.Name
-			break
+Нет игр в статусе "прогнозы открыты". Возможные причины:
+1. Игра еще не создана - используйте <code>/newgame</code>
+2. Прогнозы еще не открыты - используйте <code>/openpred</code>
+3. Игра уже перешла в другой статус - используйте <code>/games</code> для просмотра`)
 		}
-	}
-
-	if !playerFound {
 		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Игрок с ID <code>%s</code> не найден в этой игре.", h.EscapeHTML(playerSlotID)))
+			fmt.Sprintf("❌ Ошибка при поиске игры: %v", err))
 	}
 
-	if !dto.IsPredictableRole(role) {
-		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf(`❌ Недопустимая роль для прогноза: <code>%s</code> %s
-
-<b>Можно прогнозировать только злые роли:</b>
-• <code>demon</code> - демон %s
-• <code>minion</code> - приспешник %s
-
-Горожане (townsfolk) и изгои (outsider) <b>не прогнозируются</b>.`,
-				h.EscapeHTML(role),
-				formatting.RoleEmoji(role),
-				formatting.RoleEmoji("demon"),
-				formatting.RoleEmoji("minion")))
-	}
-
+	// Получаем или создаем пользователя
 	telegramID := update.Message.From.ID
 	user, err := h.userRepo.FindByTelegramID(telegramID)
 	if err != nil {
@@ -139,54 +100,81 @@ func (h *PredictHandler) Handle(update tgbotapi.Update) error {
 		}
 	}
 
-	command := dto.SubmitPredictionCommand{
-		GameID:        gameID,
-		UserID:        string(user.ID()),
-		PlayerSlotID:  playerSlotID,
-		PredictedRole: role,
+	// Парсим аргументы: чередование имени игрока и роли
+	parts := parseArguments(args)
+	if len(parts)%2 != 0 {
+		return h.SendHTML(update.Message.Chat.ID,
+			"❌ Нечетное количество аргументов. Ожидается формат: <code>/predict имя1 роль1 имя2 роль2 ...</code>")
 	}
 
-	response, err := h.submitPredictionInput.Execute(command)
-	if err != nil {
-		errorMsg := fmt.Sprintf("❌ Не удалось сохранить прогноз: %v", err)
-		return h.SendText(update.Message.Chat.ID, errorMsg)
+	var successfulPredictions []string
+	var errorMessages []string
+
+	// Обрабатываем пары (имя, роль)
+	for i := 0; i < len(parts); i += 2 {
+		playerName := parts[i]
+		role := parts[i+1]
+
+		// Находим игрока по имени в игре
+		var playerSlotID string
+		for _, player := range game.Players() {
+			if player.Name == playerName {
+				playerSlotID = string(player.ID)
+				break
+			}
+		}
+
+		if playerSlotID == "" {
+			errorMessages = append(errorMessages, fmt.Sprintf("❌ Игрок '%s' не найден в игре", playerName))
+			continue
+		}
+
+		if !dto.IsPredictableRole(role) {
+			errorMessages = append(errorMessages, fmt.Sprintf("❌ Недопустимая роль для игрока '%s': %s", playerName, role))
+			continue
+		}
+
+		command := dto.SubmitPredictionCommand{
+			GameID:        string(game.ID()),
+			UserID:        string(user.ID()),
+			PlayerSlotID:  playerSlotID,
+			PredictedRole: role,
+		}
+
+		_, err := h.submitPredictionInput.Execute(command)
+		if err != nil {
+			errorMessages = append(errorMessages, fmt.Sprintf("❌ Не удалось сохранить прогноз для '%s': %v", playerName, err))
+		} else {
+			successfulPredictions = append(successfulPredictions,
+				fmt.Sprintf("✅ %s → %s", playerName, role))
+		}
 	}
 
-	roleEmoji := formatting.RoleEmoji(role)
+	// Формируем итоговое сообщение
+	var sb strings.Builder
 
-	successMsg := fmt.Sprintf(`%s <b>Прогноз на злую роль сохранен!</b>
+	if len(successfulPredictions) > 0 {
+		sb.WriteString(fmt.Sprintf(`%s <b>Прогнозы сохранены!</b>
 
 <b>🎮 Игра:</b> %s
-<b>👤 Игрок:</b> %s
-<b>🎭 Ваш прогноз:</b> %s %s (%s)
+<b>👤 Ваши прогнозы:</b>
+%s
+`,
+			formatting.RoleEmoji("demon"),
+			h.EscapeHTML(game.Name()),
+			strings.Join(successfulPredictions, "\n")))
+	}
 
-<b>📊 Система очков:</b>
-• Если %s окажется демоном: <b>+%d очков</b> %s
-• Если %s окажется приспешником: <b>+%d очков</b> %s
-• Если ошибётесь: <b>штраф %d очков</b>
+	if len(errorMessages) > 0 {
+		sb.WriteString("\n<b>⚠️ Ошибки:</b>\n")
+		sb.WriteString(strings.Join(errorMessages, "\n"))
+	}
 
-<b>📝 Ваши прогнозы в этой игре:</b>
-ID прогноза: <code>%s</code>
-Создан: %s
+	if len(successfulPredictions) == 0 && len(errorMessages) == 0 {
+		sb.WriteString("❌ Не удалось обработать ни одного прогноза.")
+	}
 
-Теперь можно сделать прогнозы для других игроков!`,
-		roleEmoji,
-		h.EscapeHTML(game.Name()),
-		h.EscapeHTML(playerName),
-		roleEmoji,
-		h.EscapeHTML(role),
-		formatting.RoleDisplayName(role),
-		h.EscapeHTML(playerName),
-		constants.PointsForDemon,
-		formatting.RoleEmoji("demon"),
-		h.EscapeHTML(playerName),
-		constants.PointsForMinion,
-		formatting.RoleEmoji("minion"),
-		constants.PenaltyForRole(role),
-		h.EscapeHTML(response.ID),
-		response.CreatedAt.Format("02.01.2006 15:04"))
-
-	return h.SendHTML(update.Message.Chat.ID, successMsg)
+	return h.SendHTML(update.Message.Chat.ID, sb.String())
 }
 
 func (h *PredictHandler) Command() string {
@@ -194,5 +182,5 @@ func (h *PredictHandler) Command() string {
 }
 
 func (h *PredictHandler) Description() string {
-	return "Сделать прогноз на роль игрока в игре"
+	return "Сделать прогноз на роли игроков в последней игре с открытыми прогнозами"
 }

@@ -26,8 +26,10 @@ func main() {
 
 	uow := persistence.NewUnitOfWork()
 
+	// Создаем GameFinder
+	gameFinder := usecases.NewGameFinder(uow.GameRepo)
+
 	createGameUseCase := usecases.NewCreateGameUseCase(uow.GameRepo)
-	addPlayerUseCase := usecases.NewAddPlayerUseCase(uow.GameRepo)
 	addPlayersUseCase := usecases.NewAddPlayersUseCase(uow.GameRepo)
 	copyPlayersUseCase := usecases.NewCopyPlayersUseCase(uow.GameRepo)
 	openPredictionsUseCase := usecases.NewOpenPredictionsUseCase(uow.GameRepo)
@@ -38,50 +40,51 @@ func main() {
 		uow.PredictionRepo,
 	)
 	startGameUseCase := usecases.NewStartGameUseCase(uow.GameRepo)
+	finishGameUseCase := usecases.NewFinishGameUseCase(uow.GameRepo)
+	setRealRoleUseCase := usecases.NewSetRealRoleUseCase(uow.GameRepo)
 	scoringService := services.NewBasicScoringRules()
-	finishGameUseCase := usecases.NewFinishGameUseCase(
+	awardPointsUseCase := usecases.NewAwardPointsUseCase(
 		uow.GameRepo,
 		uow.UserRepo,
 		uow.PredictionRepo,
 		scoringService,
 	)
-	setRealRoleUseCase := usecases.NewSetRealRoleUseCase(uow.GameRepo)
 
 	botAPI := bot.GetAPI()
 
 	availableCommands := map[string]string{
 		"start":       "Начать работу с ботом",
 		"help":        "Показать список команд",
-		"profile":     "Показать мой профиль",
-		"mypredict":   "Показать мои прогнозы",
-		"newgame":     "Создать новую игру",
+		"newgame":     "Создать новую игру (если нет других активных игр)",
 		"games":       "Показать активные игры",
 		"gameinfo":    "Показать информацию об игре",
-		"addplayer":   "Добавить одного игрока в игру",
-		"addplayers":  "Добавить нескольких игроков",
-		"openpred":    "Открыть прогнозы для игры",
-		"predict":     "Сделать прогноз на игру",
-		"closepred":   "Закрыть прогнозы для игры",
+		"addplayers":  "Добавить несколько игроков в последнюю созданную игру",
+		"copyplayers": "Скопировать игроков из последней завершенной игры",
+		"setrealrole": "Установить реальные роли игрокам после игры",
+		"openpred":    "Открыть прогнозы для последней созданной игры",
+		"closepred":   "Закрыть прогнозы для последней игры с открытыми прогнозами",
+		"predict":     "Сделать прогноз на роли игроков в последней игре с открытыми прогнозами",
+		"mypredict":   "Показать мои прогнозы",
+		"profile":     "Показать мой профиль",
 		"startgame":   "Начать реальную игру (после закрытия прогнозов)",
-		"finish":      "Завершить игру и подсчитать результаты",
-		"setrealrole": "Установить реальную роль игрока после игры",
-		"copyplayers": "Скопировать игроков из последней игры",
+		"finish":      "Завершить последнюю игру в процессе",
+		"awardpoints": "Начислить очки за прогнозы (после установки всех ролей)",
 	}
 
 	bot.RegisterHandler(handlers.NewStartHandler(botAPI))
 	bot.RegisterHandler(handlers.NewHelpHandler(botAPI, availableCommands))
-	bot.RegisterHandler(handlers.NewNewGameHandler(botAPI, createGameUseCase))
-	bot.RegisterHandler(handlers.NewGamesHandler(botAPI, uow.GameRepo))
+	bot.RegisterHandler(handlers.NewNewGameHandler(botAPI, createGameUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewGamesHandler(botAPI, gameFinder))
 	bot.RegisterHandler(handlers.NewGameInfoHandler(botAPI, uow.GameRepo, uow.UserRepo, uow.PredictionRepo))
-	bot.RegisterHandler(handlers.NewAddPlayerHandler(botAPI, addPlayerUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewAddPlayersHandler(botAPI, addPlayersUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewCopyPlayersHandler(botAPI, copyPlayersUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewPredictHandler(botAPI, submitPredictionUseCase, uow.GameRepo, uow.UserRepo))
-	bot.RegisterHandler(handlers.NewStartGameHandler(botAPI, startGameUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewFinishGameHandler(botAPI, finishGameUseCase, uow.GameRepo))
-	bot.RegisterHandler(handlers.NewSetRealRoleHandler(botAPI, setRealRoleUseCase))
+	bot.RegisterHandler(handlers.NewAddPlayersHandler(botAPI, addPlayersUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewCopyPlayersHandler(botAPI, copyPlayersUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewOpenPredictionsHandler(botAPI, openPredictionsUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewClosePredictionsHandler(botAPI, closePredictionsUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewPredictHandler(botAPI, submitPredictionUseCase, gameFinder, uow.UserRepo))
+	bot.RegisterHandler(handlers.NewStartGameHandler(botAPI, startGameUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewFinishGameHandler(botAPI, finishGameUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewSetRealRoleHandler(botAPI, setRealRoleUseCase, gameFinder))
+	bot.RegisterHandler(handlers.NewAwardPointsHandler(botAPI, awardPointsUseCase, gameFinder))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

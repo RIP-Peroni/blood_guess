@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,18 +17,18 @@ import (
 type AddPlayersHandler struct {
 	*BaseHandler
 	addPlayersInput ports.AddPlayersInput
-	gameRepo        ports.GameRepository
+	gameFinder      *usecases.GameFinder
 }
 
 func NewAddPlayersHandler(
 	bot BotClient,
 	addPlayersInput ports.AddPlayersInput,
-	gameRepo ports.GameRepository,
+	gameFinder *usecases.GameFinder,
 ) *AddPlayersHandler {
 	return &AddPlayersHandler{
 		BaseHandler:     NewBaseHandler(bot),
 		addPlayersInput: addPlayersInput,
-		gameRepo:        gameRepo,
+		gameFinder:      gameFinder,
 	}
 }
 
@@ -39,32 +41,32 @@ func (h *AddPlayersHandler) Handle(update tgbotapi.Update) error {
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	if args == "" {
-		message := `<b>Использование:</b> <code>/addplayers &lt;ID_игры&gt; &lt;имя1&gt; &lt;имя2&gt; ...</code>
+		message := `<b>Использование:</b> <code>/addplayers &lt;имя1&gt; &lt;имя2&gt; ...</code>
 
-<b>Пример:</b> <code>/addplayers abc123 Вася Петя Коля Миша Алекс</code>
+<b>Пример:</b> <code>/addplayers Вася Петя Коля Миша Алекс</code>
 
 <b>Примечание:</b>
+• Игроки будут добавлены в последнюю созданную игру (статус: CREATED)
 • Имена игроков должны быть уникальными в рамках игры
-• Можно использовать имена с пробелами, заключив их в кавычки: <code>/addplayers abc123 "Вася Пупкин" Петя</code>
-• Роли игрокам не назначаются. Их можно назначить позже командой <code>/assignroles</code>`
+• Можно использовать имена с пробелами, заключив их в кавычки: <code>/addplayers "Вася Пупкин" Петя</code>
+• Роли игрокам не назначаются. Их можно назначить позже командой <code>/setrealrole</code>`
 
 		return h.SendHTML(update.Message.Chat.ID, message)
 	}
 
-	// Parsing arguments with quote support
-	parts := parseArguments(args)
-	if len(parts) < 2 {
-		return h.SendHTML(update.Message.Chat.ID,
-			"❌ Недостаточно аргументов. Используйте: <code>/addplayers &lt;ID_игры&gt; &lt;имя1&gt; &lt;имя2&gt; ...</code>")
-	}
-
-	gameID := parts[0]
-	playerNames := parts[1:]
-
-	game, err := h.gameRepo.FindByID(entities.GameID(gameID))
+	// Находим последнюю игру в статусе CREATED
+	game, err := h.gameFinder.FindLastGameByStatus(entities.GameStatusCreated)
 	if err != nil {
+		if errors.Is(err, usecases.ErrNoGamesWithStatus) {
+			return h.SendHTML(update.Message.Chat.ID,
+				`❌ <b>Не найдена игра для добавления игроков!</b>
+
+Нет игр в статусе "создана". Возможные причины:
+1. Игра еще не создана - используйте <code>/newgame</code>
+2. Игра уже перешла в другой статус - используйте <code>/games</code> для просмотра`)
+		}
 		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Игра с ID <code>%s</code> не найдена.", h.EscapeHTML(gameID)))
+			fmt.Sprintf("❌ Ошибка при поиске игры: %v", err))
 	}
 
 	if game.CreatorID() != update.Message.From.ID {
@@ -72,8 +74,11 @@ func (h *AddPlayersHandler) Handle(update tgbotapi.Update) error {
 			"❌ Только создатель игры может добавлять игроков.")
 	}
 
+	// Parsing arguments with quote support
+	playerNames := parseArguments(args)
+
 	command := dto.AddPlayersCommand{
-		GameID:      gameID,
+		GameID:      string(game.ID()),
 		PlayerNames: playerNames,
 		AdminID:     update.Message.From.ID,
 	}
@@ -91,15 +96,11 @@ func (h *AddPlayersHandler) Handle(update tgbotapi.Update) error {
 <b>📋 Список:</b> %s
 <b>👤 Всего игроков в игре:</b> %d
 
-Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred %s</code>
-
-<b>Примечание:</b> Роли игрокам не назначены. Вы можете назначить их командой <code>/assignroles %s</code>`,
+Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred</code>`,
 		h.EscapeHTML(response.Name),
 		len(playerNames),
 		strings.Join(playerNames, ", "),
-		len(response.Players),
-		h.EscapeHTML(gameID),
-		h.EscapeHTML(gameID))
+		len(response.Players))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)
 }
@@ -109,7 +110,7 @@ func (h *AddPlayersHandler) Command() string {
 }
 
 func (h *AddPlayersHandler) Description() string {
-	return "Добавить нескольких игроков в игру (без указания ролей)"
+	return "Добавить несколько игроков в последнюю созданную игру"
 }
 
 // parseArguments парсит аргументы с поддержкой кавычек

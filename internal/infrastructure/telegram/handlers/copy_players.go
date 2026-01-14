@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/application/ports"
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,18 +17,18 @@ import (
 type CopyPlayersHandler struct {
 	*BaseHandler
 	copyPlayersInput ports.CopyPlayersInput
-	gameRepo         ports.GameRepository
+	gameFinder       *usecases.GameFinder
 }
 
 func NewCopyPlayersHandler(
 	bot BotClient,
 	copyPlayersInput ports.CopyPlayersInput,
-	gameRepo ports.GameRepository,
+	gameFinder *usecases.GameFinder,
 ) *CopyPlayersHandler {
 	return &CopyPlayersHandler{
 		BaseHandler:      NewBaseHandler(bot),
 		copyPlayersInput: copyPlayersInput,
-		gameRepo:         gameRepo,
+		gameFinder:       gameFinder,
 	}
 }
 
@@ -38,36 +40,34 @@ func (h *CopyPlayersHandler) Handle(update tgbotapi.Update) error {
 	}
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
-	if args == "" {
-		message := `<b>Использование:</b> <code>/copyplayers &lt;ID_новой_игры&gt;</code>
-
-<b>Пример:</b> <code>/copyplayers abc123</code>
-
-<b>Что делает:</b>
-• Копирует имена игроков из вашей последней игры
-• Не копирует роли игроков
-• Игроки добавляются без назначенных ролей
-
-<b>Примечание:</b> Только создатель игры может копировать игроков.`
-
-		return h.SendHTML(update.Message.Chat.ID, message)
+	if args != "" {
+		// Старый формат с ID игры - для обратной совместимости
+		_ = h.SendHTML(update.Message.Chat.ID,
+			`<i>Примечание: Теперь команда /copyplayers не требует ID игры. Она автоматически копирует игроков в последнюю созданную игру.</i>`)
 	}
 
-	gameID := args
-
-	game, err := h.gameRepo.FindByID(entities.GameID(gameID))
+	// Находим последнюю игру в статусе CREATED
+	targetGame, err := h.gameFinder.FindLastGameByStatus(entities.GameStatusCreated)
 	if err != nil {
+		if errors.Is(err, usecases.ErrNoGamesWithStatus) {
+			return h.SendHTML(update.Message.Chat.ID,
+				`❌ <b>Не найдена игра для копирования игроков!</b>
+
+Нет игр в статусе "создана". Возможные причины:
+1. Игра еще не создана - используйте <code>/newgame</code>
+2. Игра уже перешла в другой статус - используйте <code>/games</code> для просмотра`)
+		}
 		return h.SendHTML(update.Message.Chat.ID,
-			fmt.Sprintf("❌ Игра с ID <code>%s</code> не найдена.", h.EscapeHTML(gameID)))
+			fmt.Sprintf("❌ Ошибка при поиске игры: %v", err))
 	}
 
-	if game.CreatorID() != update.Message.From.ID {
+	if targetGame.CreatorID() != update.Message.From.ID {
 		return h.SendHTML(update.Message.Chat.ID,
 			"❌ Только создатель игры может копировать игроков.")
 	}
 
 	command := dto.CopyPlayersCommand{
-		TargetGameID: gameID,
+		TargetGameID: string(targetGame.ID()),
 		AdminID:      update.Message.From.ID,
 	}
 
@@ -89,14 +89,12 @@ func (h *CopyPlayersHandler) Handle(update tgbotapi.Update) error {
 <b>👥 Скопировано игроков:</b> %d
 <b>📋 Список:</b> %s
 
-Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred %s</code>
+Теперь можно добавить ещё игроков или открыть прогнозы с помощью <code>/openpred</code>
 
-<b>Примечание:</b> Роли игрокам не назначены. Вы можете назначить их командой <code>/assignroles %s</code>`,
+<b>Примечание:</b> Роли игрокам не назначены. Вы можете назначить их командой <code>/setrealrole</code> после завершения игры.`,
 		h.EscapeHTML(response.Name),
 		len(playerNames),
-		strings.Join(playerNames, ", "),
-		h.EscapeHTML(gameID),
-		h.EscapeHTML(gameID))
+		strings.Join(playerNames, ", "))
 
 	return h.SendHTML(update.Message.Chat.ID, successMsg)
 }
@@ -106,5 +104,5 @@ func (h *CopyPlayersHandler) Command() string {
 }
 
 func (h *CopyPlayersHandler) Description() string {
-	return "Скопировать игроков из последней игры (без ролей)"
+	return "Скопировать игроков из последней завершенной игры"
 }

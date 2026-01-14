@@ -22,6 +22,15 @@ func TestCopyPlayersUseCase(t *testing.T) {
 		require.NoError(t, err)
 		err = previousGame.AddPlayer("Петя")
 		require.NoError(t, err)
+		// Finish the previous game
+		err = previousGame.OpenPredictions()
+		require.NoError(t, err)
+		err = previousGame.ClosePredictions()
+		require.NoError(t, err)
+		err = previousGame.Start()
+		require.NoError(t, err)
+		err = previousGame.Finish()
+		require.NoError(t, err)
 		err = gameRepo.Save(previousGame)
 		require.NoError(t, err)
 
@@ -48,6 +57,15 @@ func TestCopyPlayersUseCase(t *testing.T) {
 		oldGame := entities.NewGame("Old Game", 12345)
 		err := oldGame.AddPlayer("Старый игрок")
 		require.NoError(t, err)
+		// Finish the old game
+		err = oldGame.OpenPredictions()
+		require.NoError(t, err)
+		err = oldGame.ClosePredictions()
+		require.NoError(t, err)
+		err = oldGame.Start()
+		require.NoError(t, err)
+		err = oldGame.Finish()
+		require.NoError(t, err)
 		err = gameRepo.Save(oldGame)
 		require.NoError(t, err)
 
@@ -56,6 +74,15 @@ func TestCopyPlayersUseCase(t *testing.T) {
 
 		recentGame := entities.NewGame("Recent Game", 12345)
 		err = recentGame.AddPlayer("Новый игрок")
+		require.NoError(t, err)
+		// Finish the recent game
+		err = recentGame.OpenPredictions()
+		require.NoError(t, err)
+		err = recentGame.ClosePredictions()
+		require.NoError(t, err)
+		err = recentGame.Start()
+		require.NoError(t, err)
+		err = recentGame.Finish()
 		require.NoError(t, err)
 		err = gameRepo.Save(recentGame)
 		require.NoError(t, err)
@@ -79,7 +106,7 @@ func TestCopyPlayersUseCase(t *testing.T) {
 		gameRepo := persistence.NewInMemoryGameRepository()
 		useCase := NewCopyPlayersUseCase(gameRepo)
 
-		// Создаем новую игру без предыдущих
+		// Создаем новую игру без предыдущих завершенных игр
 		newGame := entities.NewGame("New Game", 12345)
 		err := gameRepo.Save(newGame)
 		require.NoError(t, err)
@@ -91,7 +118,7 @@ func TestCopyPlayersUseCase(t *testing.T) {
 
 		_, err = useCase.Execute(command)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no previous games found")
+		assert.Contains(t, err.Error(), "no finished games found")
 	})
 
 	t.Run("error when not creator", func(t *testing.T) {
@@ -100,6 +127,15 @@ func TestCopyPlayersUseCase(t *testing.T) {
 
 		previousGame := entities.NewGame("Previous Game", 12345)
 		err := previousGame.AddPlayer("Игрок")
+		require.NoError(t, err)
+		// Finish the previous game
+		err = previousGame.OpenPredictions()
+		require.NoError(t, err)
+		err = previousGame.ClosePredictions()
+		require.NoError(t, err)
+		err = previousGame.Start()
+		require.NoError(t, err)
+		err = previousGame.Finish()
 		require.NoError(t, err)
 		err = gameRepo.Save(previousGame)
 		require.NoError(t, err)
@@ -125,6 +161,15 @@ func TestCopyPlayersUseCase(t *testing.T) {
 		// Создаем предыдущую игру
 		previousGame := entities.NewGame("Previous Game", 12345)
 		err := previousGame.AddPlayer("Игрок")
+		require.NoError(t, err)
+		// Finish the previous game
+		err = previousGame.OpenPredictions()
+		require.NoError(t, err)
+		err = previousGame.ClosePredictions()
+		require.NoError(t, err)
+		err = previousGame.Start()
+		require.NoError(t, err)
+		err = previousGame.Finish()
 		require.NoError(t, err)
 		err = gameRepo.Save(previousGame)
 		require.NoError(t, err)

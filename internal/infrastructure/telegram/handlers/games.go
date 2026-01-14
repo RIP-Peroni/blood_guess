@@ -1,23 +1,24 @@
 package handlers
 
 import (
-	"RIP-Peroni/blood_guess/internal/application/ports"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 	"fmt"
 	"strings"
+
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type GamesHandler struct {
 	*BaseHandler
-	gameRepo ports.GameRepository
+	gameFinder *usecases.GameFinder
 }
 
-func NewGamesHandler(bot BotClient, gameRepo ports.GameRepository) *GamesHandler {
+func NewGamesHandler(bot BotClient, gameFinder *usecases.GameFinder) *GamesHandler {
 	return &GamesHandler{
 		BaseHandler: NewBaseHandler(bot),
-		gameRepo:    gameRepo,
+		gameFinder:  gameFinder,
 	}
 }
 
@@ -28,12 +29,14 @@ func (h *GamesHandler) Handle(update tgbotapi.Update) error {
 		return h.SendMessage(update.Message.Chat.ID, "Ошибка: не удалось определить пользователя", "")
 	}
 
-	activeGames, err := h.gameRepo.FindActiveGames()
+	// Используем GameFinder для получения активных игр через его репозиторий
+	activeGames, err := h.gameFinder.GameRepo.FindActiveGames()
 	if err != nil {
 		errorMsg := fmt.Sprintf("❌ Ошибка при получении списка игр: %v", err)
 		return h.SendText(update.Message.Chat.ID, errorMsg)
 	}
 
+	// ... остальной код без изменений
 	if len(activeGames) == 0 {
 		message := `<b>🎮 Активных игр нет</b>
 

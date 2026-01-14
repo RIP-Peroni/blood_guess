@@ -3,7 +3,6 @@ package handlers
 import (
 	"RIP-Peroni/blood_guess/internal/application/dto"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
-	"RIP-Peroni/blood_guess/internal/infrastructure/persistence"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/mocks"
 	"testing"
 	"time"
@@ -68,25 +67,21 @@ func (m *MockGameRepositoryForOpenPredictions) Update(game *entities.Game) error
 func TestOpenPredictionsHandler_Handle(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
 	mockUseCase := new(MockOpenPredictionsInput)
+	mockGameFinder := new(mocks.MockGameFinder)
 
-	// Use a real repository for tests
-	repo := persistence.NewInMemoryGameRepository()
-
-	// Test 1: Successful opening of forecasts
+	// Тест 1: Успешное открытие прогнозов
 	t.Run("successful opening of predictions", func(t *testing.T) {
 		adminID := int64(67890)
 
+		// Создаем тестовую игру
 		game := entities.NewGame("Test Game", adminID)
-
-		err := game.AddPlayer("Player 1")
-		assert.NoError(t, err)
-
-		err = repo.Save(game)
-		assert.NoError(t, err)
-
 		gameID := string(game.ID())
 
-		// Setting up a mock use case
+		// Настраиваем mock GameFinder
+		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusCreated).
+			Return(game, nil)
+
+		// Настраиваем mock use case
 		expectedCommand := dto.OpenPredictionsCommand{
 			GameID:  gameID,
 			AdminID: adminID,
@@ -97,13 +92,7 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 			Name:      "Test Game",
 			Status:    entities.GameStatusPredictionsOpen,
 			CreatorID: adminID,
-			Players: []dto.PlayerResponse{
-				{
-					ID:       string(game.Players()[0].ID),
-					Name:     "Player 1",
-					RealRole: "",
-				},
-			},
+			Players:   []dto.PlayerResponse{},
 			CreatedAt: time.Now(),
 		}
 
@@ -122,9 +111,10 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		handler := NewOpenPredictionsHandler(mockAPI, mockUseCase, repo)
+		// Создаем хендлер
+		handler := NewOpenPredictionsHandler(mockAPI, mockUseCase, mockGameFinder)
 
-		// Test update
+		// Тестируем update
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
 				Chat: &tgbotapi.Chat{
@@ -136,7 +126,7 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 					LastName:  "User",
 					UserName:  "testuser",
 				},
-				Text: "/openpred " + gameID,
+				Text: "/openpred",
 				Entities: []tgbotapi.MessageEntity{
 					{
 						Type:   "bot_command",
@@ -147,19 +137,29 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 			},
 		}
 
-		err = handler.Handle(update)
+		err := handler.Handle(update)
 
 		assert.NoError(t, err)
 		mockAPI.AssertExpectations(t)
 		mockUseCase.AssertExpectations(t)
+		mockGameFinder.AssertExpectations(t)
 	})
 
-	// Test 2: Command without arguments displays help
+	// Тест 2: Команда без аргументов показывает использование
 	t.Run("command without arguments shows usage", func(t *testing.T) {
 		mockAPI := new(mocks.MockBotAPI)
 		mockUseCase := new(MockOpenPredictionsInput)
-		repo := persistence.NewInMemoryGameRepository()
+		mockGameFinder := new(mocks.MockGameFinder)
 
+		// Создаем тестовую игру
+		game := entities.NewGame("Test Game", 67890)
+		_ = game.AddPlayer("Player 1")
+
+		// Настраиваем mock GameFinder
+		mockGameFinder.On("FindLastGameByStatus", entities.GameStatusCreated).
+			Return(game, nil)
+
+		// Ожидаем отправку сообщения
 		expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 			msg, ok := c.(tgbotapi.MessageConfig)
 			if !ok {
@@ -172,7 +172,7 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 
 		mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-		handler := NewOpenPredictionsHandler(mockAPI, mockUseCase, repo)
+		handler := NewOpenPredictionsHandler(mockAPI, mockUseCase, mockGameFinder)
 
 		update := tgbotapi.Update{
 			Message: &tgbotapi.Message{
@@ -205,10 +205,10 @@ func TestOpenPredictionsHandler_Handle(t *testing.T) {
 func TestOpenPredictionsHandler_Command(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
 	mockUseCase := new(MockOpenPredictionsInput)
-	repo := persistence.NewInMemoryGameRepository()
+	mockGameFinder := new(mocks.MockGameFinder)
 
-	handler := NewOpenPredictionsHandler(mockAPI, mockUseCase, repo)
+	handler := NewOpenPredictionsHandler(mockAPI, mockUseCase, mockGameFinder)
 
 	assert.Equal(t, "openpred", handler.Command())
-	assert.Equal(t, "Открыть прогнозы для игры", handler.Description())
+	assert.Equal(t, "Открыть прогнозы для последней созданной игры", handler.Description())
 }

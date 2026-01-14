@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"RIP-Peroni/blood_guess/internal/application/usecases"
 	"RIP-Peroni/blood_guess/internal/domain/entities"
 	"RIP-Peroni/blood_guess/internal/infrastructure/telegram/mocks"
 	"testing"
@@ -49,11 +50,38 @@ func (m *MockGameRepository) Update(game *entities.Game) error {
 	return args.Error(0)
 }
 
+// TestGameFinder - тестовая структура, которая имеет поле GameRepo
+// и удовлетворяет требованиям хендлера
+type TestGameFinder struct {
+	GameRepo *MockGameRepository
+}
+
+// Добавляем методы, чтобы структура была совместима с *usecases.GameFinder
+// Эти методы не будут использоваться в этом тесте, но нужны для совместимости
+func (t *TestGameFinder) FindActiveGame() (*entities.Game, error) {
+	return nil, nil
+}
+
+func (t *TestGameFinder) FindLastGameByStatus(status entities.GameStatus) (*entities.Game, error) {
+	return nil, nil
+}
+
+func (t *TestGameFinder) FindLatestGame() (*entities.Game, error) {
+	return nil, nil
+}
+
+func (t *TestGameFinder) CanCreateNewGame() (bool, error) {
+	return true, nil
+}
+
+func (t *TestGameFinder) FindPlayerByName(game *entities.Game, playerName string) (*entities.PlayerSlot, error) {
+	return nil, nil
+}
+
 func TestGamesHandler_Handle_WithGames(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
-	mockRepo := new(MockGameRepository)
 
-	// Create test games
+	// Создаем тестовые игры
 	game1 := entities.NewGame("Игра 1", 12345)
 	game2 := entities.NewGame("Игра 2", 67890)
 	_ = game1.OpenPredictions()
@@ -61,10 +89,12 @@ func TestGamesHandler_Handle_WithGames(t *testing.T) {
 
 	activeGames := []*entities.Game{game1, game2}
 
-	// Set up a mock repository
-	mockRepo.On("FindActiveGames").Return(activeGames, nil)
+	// Создаем mock для GameRepository
+	mockGameRepo := new(MockGameRepository)
+	mockGameRepo.On("FindActiveGames").Return(activeGames, nil)
 
-	// Wait for the message to be sent
+	// Создаем TestGameFinder с mock репозиторием
+	// Ожидаем отправку сообщения
 	expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 		msg, ok := c.(tgbotapi.MessageConfig)
 		if !ok {
@@ -77,10 +107,21 @@ func TestGamesHandler_Handle_WithGames(t *testing.T) {
 
 	mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-	// Create a handler
-	handler := NewGamesHandler(mockAPI, mockRepo)
+	// Создаем хендлер. Нужно привести тип к *usecases.GameFinder
+	// Поскольку TestGameFinder имеет те же поля, что и usecases.GameFinder,
+	// мы можем использовать unsafe преобразование или создать реальный GameFinder
+	handler := NewGamesHandler(mockAPI, (*usecases.GameFinder)(nil))
 
-	// Test update
+	// Приводим тип через явное преобразование
+	// В реальном тесте мы должны создать реальный GameFinder с mock репозиторием
+	// Давайте создадим реальный GameFinder с mock репозиторием
+	gameFinder := &usecases.GameFinder{
+		GameRepo: mockGameRepo, // mockGameRepo реализует интерфейс ports.GameRepository
+	}
+
+	handler = NewGamesHandler(mockAPI, gameFinder)
+
+	// Тестируем update
 	update := tgbotapi.Update{
 		Message: &tgbotapi.Message{
 			Chat: &tgbotapi.Chat{
@@ -92,24 +133,29 @@ func TestGamesHandler_Handle_WithGames(t *testing.T) {
 		},
 	}
 
-	// Call the handler
+	// Вызываем хендлер
 	err := handler.Handle(update)
 
 	assert.NoError(t, err)
 	mockAPI.AssertExpectations(t)
-	mockRepo.AssertExpectations(t)
+	mockGameRepo.AssertExpectations(t)
 	assert.Equal(t, "games", handler.Command())
 	assert.Equal(t, "Показать активные игры", handler.Description())
 }
 
 func TestGamesHandler_Handle_NoGames(t *testing.T) {
 	mockAPI := new(mocks.MockBotAPI)
-	mockRepo := new(MockGameRepository)
 
-	// Setting up a mock: no active games
-	mockRepo.On("FindActiveGames").Return([]*entities.Game{}, nil)
+	// Создаем mock для GameRepository
+	mockGameRepo := new(MockGameRepository)
+	mockGameRepo.On("FindActiveGames").Return([]*entities.Game{}, nil)
 
-	// Wait for the message to be sent
+	// Создаем реальный GameFinder с mock репозиторием
+	gameFinder := &usecases.GameFinder{
+		GameRepo: mockGameRepo,
+	}
+
+	// Ожидаем отправку сообщения
 	expectedMessage := mock.MatchedBy(func(c tgbotapi.Chattable) bool {
 		msg, ok := c.(tgbotapi.MessageConfig)
 		if !ok {
@@ -122,10 +168,10 @@ func TestGamesHandler_Handle_NoGames(t *testing.T) {
 
 	mockAPI.On("Send", expectedMessage).Return(tgbotapi.Message{}, nil)
 
-	// Create a handler
-	handler := NewGamesHandler(mockAPI, mockRepo)
+	// Создаем хендлер
+	handler := NewGamesHandler(mockAPI, gameFinder)
 
-	// Test update
+	// Тестируем update
 	update := tgbotapi.Update{
 		Message: &tgbotapi.Message{
 			Chat: &tgbotapi.Chat{
@@ -137,10 +183,10 @@ func TestGamesHandler_Handle_NoGames(t *testing.T) {
 		},
 	}
 
-	// Call handler
+	// Вызываем хендлер
 	err := handler.Handle(update)
 
 	assert.NoError(t, err)
 	mockAPI.AssertExpectations(t)
-	mockRepo.AssertExpectations(t)
+	mockGameRepo.AssertExpectations(t)
 }

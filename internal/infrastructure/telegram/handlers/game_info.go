@@ -104,7 +104,7 @@ func (h *GameInfoHandler) Handle(update tgbotapi.Update) error {
 	sb.WriteString("\n<b>📝 Доступные действия:</b>\n")
 	switch game.Status() {
 	case entities.GameStatusCreated:
-		sb.WriteString("• Используйте <code>/addplayer</code> чтобы добавить игроков\n")
+		sb.WriteString("• Используйте <code>/addplayers</code> чтобы добавить игроков\n")
 		sb.WriteString("• Используйте <code>/openpred</code> чтобы открыть прогнозы\n")
 	case entities.GameStatusPredictionsOpen:
 		sb.WriteString("• Используйте <code>/predict</code> чтобы сделать прогноз\n")
